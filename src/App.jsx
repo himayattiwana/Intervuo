@@ -1,16 +1,21 @@
 import Interviewer from './components/Interviewer'
 import ResumeUpload from './components/ResumeUpload'
+import FeedbackPanel from './components/FeedbackPanel'
+import InterviewReport from './components/InterviewReport'
 import { useState, useEffect } from 'react'
 import './App.css'
 
 function App() {  
-  const [currentPage, setCurrentPage] = useState('interviewer')
+  const [currentPage, setCurrentPage] = useState('resume')
   const [generatedQuestions, setGeneratedQuestions] = useState([])
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
   const [sessionId, setSessionId] = useState(null)
   const [sessionInfo, setSessionInfo] = useState(null)
   const [answeredQuestions, setAnsweredQuestions] = useState([])
   const [saving, setSaving] = useState(false)
+  const [feedback, setFeedback] = useState(null)
+  const [analyzingAnswer, setAnalyzingAnswer] = useState(false)
+  const [showReport, setShowReport] = useState(false)
  
   const createSession = async (info) => {
     try {
@@ -63,7 +68,6 @@ function App() {
       if (result.success) {
         console.log('✅ Answer saved:', result)
         
-        // Mark question as answered
         setAnsweredQuestions(prev => [...prev, currentQuestionIndex])
         
         return true
@@ -80,42 +84,84 @@ function App() {
     }
   }
 
+  const analyzeAnswer = async (answerText, questionText) => {
+    setAnalyzingAnswer(true)
+    setFeedback(null)
+    
+    try {
+      const response = await fetch('http://localhost:5000/api/analyze-answer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          question: questionText,
+          answer: answerText,
+          field: sessionInfo?.field || 'General',
+          level: sessionInfo?.level || 'Intermediate'
+        })
+      })
+      
+      const result = await response.json()
+      
+      if (result.success) {
+        setFeedback(result)
+        return result
+      }
+    } catch (error) {
+      console.error('Error analyzing answer:', error)
+      setFeedback({
+        score: 5,
+        good: 'Answer recorded successfully',
+        improve: 'Keep practicing and providing detailed responses',
+        success: true
+      })
+    } finally {
+      setAnalyzingAnswer(false)
+    }
+  }
+
+  const handleFeedbackContinue = () => {
+    setFeedback(null)
+    
+    if (currentQuestionIndex < generatedQuestions.length - 1) {
+      setCurrentQuestionIndex(prev => prev + 1)
+    } else {
+      alert('🎉 Interview completed! All answers saved successfully!')
+    }
+  }
+
   const onSubmitResponse = async (payload) => {
     console.log('Answer submitted:', payload)
     
-    // Save to database
     const saved = await saveAnswer(payload)
     
     if (saved) {
-      // Move to next question if available
-      if (currentQuestionIndex < generatedQuestions.length - 1) {
-        setCurrentQuestionIndex(prev => prev + 1)
-      } else {
-        // All questions completed
-        alert('🎉 Interview completed! All answers saved successfully!')
-      }
+      await analyzeAnswer(payload.transcript, getCurrentQuestion())
     }
   }
 
   const handleQuestionsGenerated = async (questions, resumeInfo) => {
+    console.log('🎯 Questions generated, creating session...')
+    console.log('Resume info:', resumeInfo)
+    
     setGeneratedQuestions(questions)
     setCurrentQuestionIndex(0)
     setAnsweredQuestions([])
     
-    // Create new session and wait for it
-    await createSession({
+    const newSessionId = await createSession({
       name: resumeInfo.name || 'Anonymous',
       email: resumeInfo.email || 'N/A',
       field: resumeInfo.field || 'General',
       level: resumeInfo.level || 'Intermediate'
     })
     
+    console.log('📝 Session created with ID:', newSessionId)
     console.log('Questions generated:', questions)
     
-    // Auto-switch to interviewer page after questions generated
-    setTimeout(() => {
-      setCurrentPage('interviewer')
-    }, 1000)
+    if (newSessionId) {
+      console.log('✅ Session ready! User can now start the interview.')
+    } else {
+      alert('Failed to create session. Please check if Python server is running.')
+    }
   }
 
   const getCurrentQuestion = () => {
@@ -289,7 +335,17 @@ function App() {
               onSubmit={onSubmitResponse}
               saving={saving}
               isAnswered={isQuestionAnswered(currentQuestionIndex)}
+              disabled={analyzingAnswer || feedback !== null}
             />
+
+            {(analyzingAnswer || feedback) && (
+              <FeedbackPanel
+                feedback={feedback}
+                loading={analyzingAnswer}
+                onContinue={handleFeedbackContinue}
+                questionNumber={currentQuestionIndex + 1}
+              />
+            )}
 
             {generatedQuestions.length > 0 && (
               <div style={{

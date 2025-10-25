@@ -5,7 +5,8 @@ export default function Interviewer({
   question="",
   onSubmit = (data) => console.log(data),
   saving = false,
-  isAnswered = false
+  isAnswered = false,
+  disabled = false
 }) {
   const [recording, setRecording] = useState(false)
   const [manualText, setManualText] = useState('')
@@ -111,7 +112,6 @@ export default function Interviewer({
   }
 
   const handleSaveAndNext = async () => {
-    // Check if there's an answer (either typed or recorded)
     if (!finalTranscript.trim()) {
       alert('Please provide an answer before saving!')
       return
@@ -119,11 +119,9 @@ export default function Interviewer({
     
     let audioBlob = null
     
-    // If recording, stop it first
     if (recording && recorderRef.current && recorderRef.current.state !== 'inactive') {
       recorderRef.current.stop()
       
-      // Wait for recording to stop and create blob
       await new Promise((resolve) => {
         recorderRef.current.onstop = () => {
           audioBlob = new Blob(chunksRef.current, { type: 'video/webm' })
@@ -135,13 +133,11 @@ export default function Interviewer({
     
     const currentTranscript = finalTranscript
     
-    // Submit the answer
     await onSubmit({ 
       audioBlob: audioBlob, 
       transcript: currentTranscript 
     })
     
-    // Clear for next question
     resetTranscript()
     setManualText('')
   }
@@ -196,17 +192,17 @@ export default function Interviewer({
             {!recording ? (
               <button
                 onClick={startRec}
-                disabled={saving}
+                disabled={saving || disabled}
                 style={{ 
                   padding: '12px 20px', 
                   borderRadius: 8, 
                   border: 'none', 
-                  background: saving ? '#ccc' : '#4CAF50', 
+                  background: (saving || disabled) ? '#ccc' : '#4CAF50', 
                   color: '#fff', 
                   fontWeight: 600,
                   fontSize: 14,
-                  cursor: saving ? 'not-allowed' : 'pointer',
-                  opacity: saving ? 0.6 : 1
+                  cursor: (saving || disabled) ? 'not-allowed' : 'pointer',
+                  opacity: (saving || disabled) ? 0.6 : 1
                 }}
               >
                 🎤 Start Recording
@@ -219,15 +215,17 @@ export default function Interviewer({
                     setRecording(false)
                   }
                 }}
+                disabled={disabled}
                 style={{ 
                   padding: '12px 20px', 
                   borderRadius: 8, 
                   border: 'none', 
-                  background: '#f44336', 
+                  background: disabled ? '#ccc' : '#f44336', 
                   color: '#fff', 
                   fontWeight: 600,
                   fontSize: 14,
-                  cursor: 'pointer'
+                  cursor: disabled ? 'not-allowed' : 'pointer',
+                  opacity: disabled ? 0.6 : 1
                 }}
               >
                 ⏹️ Stop Recording
@@ -237,29 +235,29 @@ export default function Interviewer({
             {/* Save & Next Button */}
             <button
               onClick={handleSaveAndNext}
-              disabled={saving || !finalTranscript.trim()}
+              disabled={saving || !finalTranscript.trim() || disabled}
               style={{ 
                 padding: '12px 24px', 
                 borderRadius: 8, 
                 border: 'none', 
-                background: saving ? '#ccc' : finalTranscript.trim() ? '#2196F3' : '#ccc',
+                background: (saving || !finalTranscript.trim() || disabled) ? '#ccc' : '#2196F3',
                 color: '#fff', 
                 fontWeight: 600,
                 fontSize: 14,
-                cursor: saving || !finalTranscript.trim() ? 'not-allowed' : 'pointer',
-                opacity: saving || !finalTranscript.trim() ? 0.6 : 1,
+                cursor: (saving || !finalTranscript.trim() || disabled) ? 'not-allowed' : 'pointer',
+                opacity: (saving || !finalTranscript.trim() || disabled) ? 0.6 : 1,
                 display: 'flex',
                 alignItems: 'center',
                 gap: 8
               }}
-              title="Save answer and move to next question"
+              title={disabled ? "Please wait for feedback" : "Save answer and move to next question"}
             >
               {saving ? '💾 Saving...' : isAnswered ? '✓ Save & Next' : '💾 Save & Next'}
             </button>
 
             <button
               onClick={handleClear}
-              disabled={saving}
+              disabled={saving || disabled}
               style={{ 
                 padding: '12px 20px', 
                 borderRadius: 8, 
@@ -268,8 +266,8 @@ export default function Interviewer({
                 color: '#333', 
                 fontWeight: 500,
                 fontSize: 14,
-                cursor: saving ? 'not-allowed' : 'pointer',
-                opacity: saving ? 0.6 : 1
+                cursor: (saving || disabled) ? 'not-allowed' : 'pointer',
+                opacity: (saving || disabled) ? 0.6 : 1
               }}
               title="Clear text and start over"
             >

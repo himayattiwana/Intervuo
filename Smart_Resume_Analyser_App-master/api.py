@@ -15,6 +15,27 @@ CORS(app)
 
 # Configure Gemini AI
 genai.configure(api_key=GEMINI_API_KEY)
+
+# Safety settings to prevent blocking
+safety_settings = [
+    {
+        "category": "HARM_CATEGORY_HARASSMENT",
+        "threshold": "BLOCK_NONE"
+    },
+    {
+        "category": "HARM_CATEGORY_HATE_SPEECH",
+        "threshold": "BLOCK_NONE"
+    },
+    {
+        "category": "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+        "threshold": "BLOCK_NONE"
+    },
+    {
+        "category": "HARM_CATEGORY_DANGEROUS_CONTENT",
+        "threshold": "BLOCK_NONE"
+    },
+]
+
 model = genai.GenerativeModel(
     GEMINI_MODEL,
     generation_config={
@@ -22,7 +43,8 @@ model = genai.GenerativeModel(
         "top_p": 0.95,
         "top_k": 40,
         "max_output_tokens": 2048,
-    }
+    },
+    safety_settings=safety_settings
 )
 
 # Initialize database connection globally
@@ -60,6 +82,9 @@ try:
         question_text TEXT NOT NULL,
         answer_text TEXT,
         audio_filename VARCHAR(255),
+        feedback_score INT DEFAULT NULL,
+        feedback_good TEXT,
+        feedback_improve TEXT,
         answered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (session_id) REFERENCES interview_sessions(session_id)
     );
@@ -300,94 +325,107 @@ def generate_interview_questions(skills, field, level, resume_text, name, email)
         
         sections = extract_resume_sections(resume_text)
         
-        prompt = f"""You are an expert technical interviewer who has CAREFULLY READ this candidate's resume. Generate exactly {NUM_QUESTIONS} HIGHLY SPECIFIC and PERSONALIZED interview questions.
+        # Enhanced prompt for more natural, unique questions
+        prompt = f"""You are conducting a real interview with {name}. Generate {NUM_QUESTIONS} NATURAL, CONVERSATIONAL questions that feel spontaneous and human.
 
-CANDIDATE INFORMATION:
+CANDIDATE PROFILE:
 Name: {name}
-Email: {email}
-Field: {field}
-Experience Level: {level} ({difficulty})
+Field: {field}  
+Level: {level}
+Skills: {skills_str}
 
-DETECTED SKILLS (use these in questions):
-{skills_str}
+RESUME HIGHLIGHTS:
+{sections['projects'][:400]}
+{sections['experience'][:400]}
 
-RESUME SECTIONS - READ CAREFULLY:
+CRITICAL INSTRUCTIONS:
+1. Make questions sound NATURAL - as if you're having a real conversation
+2. NEVER use templates like "Tell me about..." or "Describe your experience with..."
+3. Reference their ACTUAL projects/work when possible
+4. Be conversational: "I noticed you worked with X - what made you choose it over Y?"
+5. Mix up sentence structures - use fragments, rhetorical questions, casual language
+6. Make it feel like you're genuinely curious about their work
+7. Avoid corporate/formal language - be human and engaging
 
-PROJECTS/WORK:
-{sections['projects'][:600]}
+FORBIDDEN PHRASES (never use these):
+- "Tell me about..."
+- "Describe your experience..."
+- "Walk me through..."
+- "Can you explain..."
+- "What is your understanding of..."
 
-EXPERIENCE:
-{sections['experience'][:600]}
+GOOD EXAMPLES OF NATURAL QUESTIONS:
+- "So {skills[0] if skills else 'Python'} - what's been your biggest headache working with it?"
+- "I'm curious, when you built that {field.lower()} project, how did you handle the data persistence layer?"
+- "You mentioned {skills[1] if len(skills) > 1 else 'databases'} on your resume. What's one thing you wish you knew earlier about it?"
+- "Looking at your background, you seem to bounce between {skills[0] if skills else 'tech'} and {skills[1] if len(skills) > 1 else 'other tech'}. What draws you to both?"
 
-SUMMARY:
-{sections['summary'][:300]}
+QUESTION MIX:
+- 3 technical deep-dives (specific to their skills)
+- 2 about actual projects/challenges they faced  
+- 2 scenario-based (relevant to {field})
+- 1 about their growth/learning approach
 
-YOUR TASK:
-Create {NUM_QUESTIONS} questions that prove you READ this resume. Each question must:
+Make each question feel different - vary length, tone, and structure. Be genuinely curious.
 
-1. Reference SPECIFIC technologies from their skill set
-2. Mention ACTUAL projects or companies if present in resume
-3. Ask about REAL challenges they likely faced based on their work
-4. Use their ACTUAL experience level appropriately
+Generate exactly {NUM_QUESTIONS} questions, numbered 1-{NUM_QUESTIONS}, nothing else:"""
 
-QUESTION DISTRIBUTION:
-- 3 questions: Deep technical about their specific tech stack (mention exact technologies)
-- 2 questions: About their actual projects/work experience (reference what you see)
-- 2 questions: Problem-solving scenarios using their skills
-- 1 question: Behavioral/leadership appropriate to their level
-
-EXAMPLES OF GOOD PERSONALIZED QUESTIONS:
-- "I see you have {skills[0] if skills else 'Python'} listed - walk me through the most complex algorithm or data structure you implemented with it"
-- "You're working in {field} - describe a specific bug or performance issue you debugged recently and your approach"
-- "Given your experience with {skills[1] if len(skills) > 1 else 'databases'}, how would you design a schema for [specific scenario related to their field]?"
-
-STRICT RULES:
-- NO generic questions like "tell me about yourself" or "what are your strengths"
-- Every question must show you analyzed their resume
-- Use actual skill names from their list
-- Make questions conversational but specific
-- Difficulty must match {level} level
-
-Generate ONLY the questions numbered 1-{NUM_QUESTIONS}, nothing else:"""
-
-        response = model.generate_content(prompt)
+        response = model.generate_content(
+        prompt,
+        safety_settings=safety_settings
+        )
         questions_text = response.text.strip()
+        
+        print(f"📝 Raw questions from AI:\n{questions_text[:200]}...")
         
         questions = []
         lines = questions_text.split('\n')
         for line in lines:
             line = line.strip()
-            if line and (line[0].isdigit() or line.startswith('-') or line.startswith('•')):
-                question = re.sub(r'^[\d\-•.)\s]+', '', line).strip()
-                if question:
+            # More flexible parsing - accept various numbering formats
+            if line and (line[0].isdigit() or line.startswith('-') or line.startswith('•') or line.startswith('*')):
+                # Remove numbering, bullets, etc
+                question = re.sub(r'^[\d\-•*.)\s]+', '', line).strip()
+                # Remove quotes if present
+                question = question.strip('"\'')
+                if question and len(question) > 10:
                     questions.append(question)
         
+        print(f"✅ Parsed {len(questions)} questions")
+        
+        # If we got too few or too many questions, trim/pad
         if len(questions) < NUM_QUESTIONS:
-            fallback = [
-                f"Tell me about your background in {field}",
-                f"I noticed you have experience with {skills[0] if skills else 'various technologies'} - can you elaborate on a project where you used it?",
-                f"What's the most challenging problem you've solved in your {field} work?",
-                f"Walk me through your experience with {skills[1] if len(skills) > 1 else 'your technical stack'}",
-                "Describe a time when you had to learn a new technology quickly",
-                f"How do you approach debugging and troubleshooting in {skills[2] if len(skills) > 2 else 'your projects'}?",
-                "Tell me about a project you're particularly proud of",
-                f"Where do you see yourself growing in the {field} space?"
+            # Add smart fallback questions that still feel natural
+            fallback_natural = [
+                f"What's the most interesting problem you've solved with {skills[0] if skills else 'your tech stack'}?",
+                f"I'm curious about your {field.lower()} background - what got you into it?",
+                f"When working with {skills[1] if len(skills) > 1 else 'databases'}, what's your go-to approach for optimization?",
+                f"You've got {level.lower()} experience - what's one thing you'd tell your past self when starting out?",
+                "If you had to pick one technology to master deeply, what would it be and why?",
+                f"Looking at {field.lower()} trends, what excites you most about where the field is heading?",
+                "What's a technical decision you made that you'd do differently now?",
+                f"How do you stay current with {skills[2] if len(skills) > 2 else 'new technologies'}?"
             ]
-            questions.extend(fallback[:NUM_QUESTIONS - len(questions)])
+            random.shuffle(fallback_natural)
+            questions.extend(fallback_natural[:NUM_QUESTIONS - len(questions)])
         
         return questions[:NUM_QUESTIONS]
     
     except Exception as e:
-        print(f"Error generating questions: {e}")
+        print(f"❌ Error generating questions: {e}")
+        import traceback
+        traceback.print_exc()
+        
+        # Natural-sounding fallback questions
         fallback = [
-            f"Tell me about your background in {field}",
-            f"I noticed you have experience with {skills[0] if skills else 'various technologies'} - can you elaborate on a project where you used it?",
-            f"What's the most challenging problem you've solved in your {field} work?",
-            f"Walk me through your experience with {skills[1] if len(skills) > 1 else 'your technical stack'}",
-            "Describe a time when you had to learn a new technology quickly",
-            f"How do you approach debugging and troubleshooting in {skills[2] if len(skills) > 2 else 'your projects'}?",
-            "Tell me about a project you're particularly proud of",
-            f"Where do you see yourself growing in the {field} space?"
+            f"What draws you to {field}? What made you choose this path?",
+            f"I see {skills[0] if skills else 'programming'} on your resume - what's your favorite aspect of working with it?",
+            f"Tell me about a project where things didn't go as planned. How'd you handle it?",
+            f"When you're learning something new in {field.lower()}, what's your process?",
+            f"You've worked with {skills[1] if len(skills) > 1 else 'various technologies'} - which one surprised you the most?",
+            "What's a technical challenge you're proud of overcoming?",
+            f"If you could improve one thing about your current {field.lower()} skills, what would it be?",
+            "Where do you see yourself going in the next few years?"
         ]
         return fallback[:NUM_QUESTIONS]
 
@@ -517,6 +555,9 @@ def save_answer():
         question_number = request.form.get('question_number')
         question_text = request.form.get('question_text')
         answer_text = request.form.get('answer_text')
+        feedback_score = request.form.get('feedback_score')
+        feedback_good = request.form.get('feedback_good')
+        feedback_improve = request.form.get('feedback_improve')
         
         print(f"📥 Received save request - Session: {session_id}, Q: {question_number}")
         
@@ -542,15 +583,19 @@ def save_answer():
         if db_cursor and db_connection:
             insert_sql = """
             INSERT INTO interview_answers 
-            (session_id, question_number, question_text, answer_text, audio_filename)
-            VALUES (%s, %s, %s, %s, %s)
+            (session_id, question_number, question_text, answer_text, audio_filename, 
+             feedback_score, feedback_good, feedback_improve)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
             """
             values = (
                 session_id,
                 int(question_number),
                 question_text,
                 answer_text or '',
-                audio_filename
+                audio_filename,
+                int(feedback_score) if feedback_score else None,
+                feedback_good,
+                feedback_improve
             )
             db_cursor.execute(insert_sql, values)
             db_connection.commit()
@@ -567,6 +612,81 @@ def save_answer():
             
     except Exception as e:
         print(f"❌ Error saving answer: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/get-session-report/<session_id>', methods=['GET'])
+def get_session_report(session_id):
+    """Get complete interview report for a session"""
+    try:
+        if db_cursor and db_connection:
+            # Get session info
+            session_query = """
+            SELECT user_name, user_email, resume_field, experience_level, created_at
+            FROM interview_sessions
+            WHERE session_id = %s
+            """
+            db_cursor.execute(session_query, (session_id,))
+            session_result = db_cursor.fetchone()
+            
+            if not session_result:
+                return jsonify({"error": "Session not found"}), 404
+            
+            # Get all answers with feedback
+            answers_query = """
+            SELECT question_number, question_text, answer_text, 
+                   feedback_score, feedback_good, feedback_improve, answered_at
+            FROM interview_answers
+            WHERE session_id = %s
+            ORDER BY question_number
+            """
+            db_cursor.execute(answers_query, (session_id,))
+            answers_results = db_cursor.fetchall()
+            
+            # Build response
+            answers = []
+            total_score = 0
+            scored_answers = 0
+            
+            for row in answers_results:
+                answer_data = {
+                    "question_number": row[0],
+                    "question": row[1],
+                    "answer": row[2],
+                    "feedback_score": row[3],
+                    "feedback_good": row[4],
+                    "feedback_improve": row[5],
+                    "answered_at": str(row[6])
+                }
+                answers.append(answer_data)
+                
+                if row[3] is not None:
+                    total_score += row[3]
+                    scored_answers += 1
+            
+            average_score = round(total_score / scored_answers, 1) if scored_answers > 0 else 0
+            
+            report = {
+                "session_id": session_id,
+                "user_name": session_result[0],
+                "user_email": session_result[1],
+                "field": session_result[2],
+                "level": session_result[3],
+                "interview_date": str(session_result[4]),
+                "answers": answers,
+                "total_questions": len(answers),
+                "average_score": average_score,
+                "total_score": total_score,
+                "max_possible_score": scored_answers * 10
+            }
+            
+            return jsonify(report), 200
+        else:
+            return jsonify({"error": "Database not available"}), 500
+            
+    except Exception as e:
+        print(f"❌ Error fetching report: {e}")
         import traceback
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500
@@ -601,6 +721,100 @@ def get_session_answers(session_id):
     except Exception as e:
         print(f"❌ Error fetching answers: {e}")
         return jsonify({"error": str(e)}), 500
+
+@app.route('/api/analyze-answer', methods=['POST'])
+def analyze_answer():
+    """Analyze interview answer using Gemini AI"""
+    try:
+        data = request.json
+        question = data.get('question', '')
+        answer = data.get('answer', '')
+        field = data.get('field', 'General')
+        level = data.get('level', 'Intermediate')
+        
+        print(f"🤖 Analyzing answer for: {question[:50]}...")
+        
+        if not answer or not answer.strip():
+            return jsonify({"error": "No answer provided"}), 400
+        
+        # Create prompt for answer analysis
+        prompt = f"""You are an expert technical interviewer analyzing a candidate's answer.
+
+QUESTION ASKED:
+{question}
+
+CANDIDATE'S ANSWER:
+{answer}
+
+CANDIDATE INFO:
+- Field: {field}
+- Level: {level}
+
+YOUR TASK:
+Analyze this answer and provide BRIEF feedback in exactly this format:
+
+SCORE: [number 1-10]
+GOOD: [One short sentence about what was good]
+IMPROVE: [One short sentence about what could be better]
+
+Keep it very concise - max 15 words per point.
+
+Example:
+SCORE: 7
+GOOD: Clear explanation of core concepts with practical examples
+IMPROVE: Could mention performance optimization and edge cases
+
+Now analyze the answer above:"""
+
+        # Get AI analysis
+        response = model.generate_content(
+        prompt,
+        safety_settings=safety_settings
+        )
+        feedback_text = response.text.strip()
+        
+        print(f"✅ Feedback generated: {feedback_text[:100]}...")
+        
+        # Parse the response
+        score = 5  # Default
+        good_points = "Good answer"
+        improve_points = "Keep practicing"
+        
+        lines = feedback_text.split('\n')
+        for line in lines:
+            line = line.strip()
+            if line.startswith('SCORE:'):
+                try:
+                    score = int(re.findall(r'\d+', line)[0])
+                    score = max(1, min(10, score))  # Clamp between 1-10
+                except:
+                    score = 5
+            elif line.startswith('GOOD:'):
+                good_points = line.replace('GOOD:', '').strip()
+            elif line.startswith('IMPROVE:'):
+                improve_points = line.replace('IMPROVE:', '').strip()
+        
+        result = {
+            "score": score,
+            "good": good_points,
+            "improve": improve_points,
+            "success": True
+        }
+        
+        print(f"📊 Score: {score}/10")
+        return jsonify(result), 200
+        
+    except Exception as e:
+        print(f"❌ Error analyzing answer: {e}")
+        import traceback
+        traceback.print_exc()
+        # Return neutral feedback on error
+        return jsonify({
+            "score": 5,
+            "good": "Answer recorded successfully",
+            "improve": "Focus on providing more specific details",
+            "success": True
+        }), 200
 
 @app.route('/api/health', methods=['GET'])
 def health_check():
