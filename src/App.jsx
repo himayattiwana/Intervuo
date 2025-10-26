@@ -54,6 +54,13 @@ function App() {
       formData.append('question_text', getCurrentQuestion())
       formData.append('answer_text', answerData.transcript || '')
       
+      // Add feedback data if available
+      if (answerData.feedback) {
+        formData.append('feedback_score', answerData.feedback.score)
+        formData.append('feedback_good', answerData.feedback.good)
+        formData.append('feedback_improve', answerData.feedback.improve)
+      }
+      
       if (answerData.audioBlob) {
         formData.append('audio', answerData.audioBlob, 'recording.webm')
       }
@@ -66,7 +73,7 @@ function App() {
       const result = await response.json()
       
       if (result.success) {
-        console.log('✅ Answer saved:', result)
+        console.log('✅ Answer saved with feedback:', result)
         
         setAnsweredQuestions(prev => [...prev, currentQuestionIndex])
         
@@ -125,17 +132,23 @@ function App() {
     if (currentQuestionIndex < generatedQuestions.length - 1) {
       setCurrentQuestionIndex(prev => prev + 1)
     } else {
-      alert('🎉 Interview completed! All answers saved successfully!')
+      // Interview completed - show report
+      setShowReport(true)
     }
   }
 
   const onSubmitResponse = async (payload) => {
     console.log('Answer submitted:', payload)
     
-    const saved = await saveAnswer(payload)
+    // First analyze the answer to get feedback
+    const feedbackResult = await analyzeAnswer(payload.transcript, getCurrentQuestion())
     
-    if (saved) {
-      await analyzeAnswer(payload.transcript, getCurrentQuestion())
+    // Then save the answer with the feedback
+    if (feedbackResult) {
+      await saveAnswer({
+        ...payload,
+        feedback: feedbackResult
+      })
     }
   }
 
@@ -189,270 +202,308 @@ function App() {
 
   return (
     <div style={{ minHeight: '100vh' }}>
-      {/* Navigation Bar */}
-      <nav style={{
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        gap: 20,
-        padding: '15px 20px',
-        background: '#fff',
-        boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
-        position: 'sticky',
-        top: 0,
-        zIndex: 1000
-      }}>
-        <button
-          onClick={() => setCurrentPage('interviewer')}
-          style={{
-            padding: '10px 24px',
-            borderRadius: 8,
-            border: 'none',
-            background: currentPage === 'interviewer' ? '#4CAF50' : '#e0e0e0',
-            color: currentPage === 'interviewer' ? '#fff' : '#333',
-            fontSize: 16,
-            fontWeight: 600,
-            cursor: 'pointer',
-            transition: 'all 0.3s ease'
-          }}
-        >
-          🎤 Virtual Interviewer
-        </button>
-        
-        <button
-          onClick={() => setCurrentPage('resume')}
-          style={{
-            padding: '10px 24px',
-            borderRadius: 8,
-            border: 'none',
-            background: currentPage === 'resume' ? '#2196F3' : '#e0e0e0',
-            color: currentPage === 'resume' ? '#fff' : '#333',
-            fontSize: 16,
-            fontWeight: 600,
-            cursor: 'pointer',
-            transition: 'all 0.3s ease'
-          }}
-        >
-          📄 Resume Analyzer
-        </button>
-
-        {generatedQuestions.length > 0 && (
-          <div style={{
-            padding: '10px 20px',
-            borderRadius: 8,
-            background: sessionId ? '#e8f5e9' : '#fff3e0',
-            color: sessionId ? '#2e7d32' : '#e65100',
-            fontSize: 14,
-            fontWeight: 600,
+      {showReport ? (
+        // Show Report Page
+        <InterviewReport 
+          sessionId={sessionId} 
+          onClose={() => {
+            setShowReport(false)
+            setCurrentPage('resume')
+            setGeneratedQuestions([])
+            setCurrentQuestionIndex(0)
+            setAnsweredQuestions([])
+            setSessionId(null)
+            setSessionInfo(null)
+          }} 
+        />
+      ) : (
+        <>
+          {/* Navigation Bar */}
+          <nav style={{
             display: 'flex',
+            justifyContent: 'center',
             alignItems: 'center',
-            gap: 8
+            gap: 20,
+            padding: '15px 20px',
+            background: '#fff',
+            boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
+            position: 'sticky',
+            top: 0,
+            zIndex: 1000
           }}>
-            {sessionId ? '✓' : '⏳'} {generatedQuestions.length} Questions | {answeredQuestions.length} Answered
-            {!sessionId && <span style={{ fontSize: 12, opacity: 0.8 }}>(Preparing...)</span>}
-          </div>
-        )}
-      </nav>
-
-      {/* Page Content */}
-      {currentPage === 'interviewer' ? (
-        <div>
-          <div
-            style={{
-              display: 'flex',          
-              flexDirection: 'column', 
-              justifyContent: 'center',
-              alignItems: 'center', 
-              minHeight: 'calc(100vh - 60px)',
-              padding: 16,
-              boxSizing: 'border-box',
-            }}
-          >
-            <h1 style={{ marginBottom: 10 }}>Virtual Interviewer</h1>
+            <button
+              onClick={() => setCurrentPage('interviewer')}
+              style={{
+                padding: '10px 24px',
+                borderRadius: 8,
+                border: 'none',
+                background: currentPage === 'interviewer' ? '#4CAF50' : '#e0e0e0',
+                color: currentPage === 'interviewer' ? '#fff' : '#333',
+                fontSize: 16,
+                fontWeight: 600,
+                cursor: 'pointer',
+                transition: 'all 0.3s ease'
+              }}
+            >
+              🎤 Virtual Interviewer
+            </button>
             
-            {generatedQuestions.length > 0 && (
-              <div style={{
-                marginBottom: 20,
-                width: '100%',
-                maxWidth: 1000
-              }}>
-                {/* Current Question Highlight */}
-                <div style={{
-                  padding: '25px 35px',
-                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                  borderRadius: 16,
-                  color: '#fff',
-                  boxShadow: '0 8px 20px rgba(102, 126, 234, 0.4)',
-                  marginBottom: 15
-                }}>
-                  <div style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    marginBottom: 15
-                  }}>
-                    <p style={{ margin: 0, fontSize: 14, opacity: 0.9, fontWeight: 600 }}>
-                      QUESTION {currentQuestionIndex + 1} OF {generatedQuestions.length}
-                    </p>
-                    {isQuestionAnswered(currentQuestionIndex) && (
-                      <span style={{
-                        padding: '4px 12px',
-                        background: '#4CAF50',
-                        borderRadius: 12,
-                        fontSize: 12,
-                        fontWeight: 600
-                      }}>
-                        ✓ ANSWERED
-                      </span>
-                    )}
-                  </div>
-                  <p style={{ margin: 0, fontSize: 20, fontWeight: 600, lineHeight: 1.5 }}>
-                    {getCurrentQuestion()}
-                  </p>
-                </div>
-
-                {/* Progress Bar */}
-                <div style={{
-                  width: '100%',
-                  height: 8,
-                  background: '#e0e0e0',
-                  borderRadius: 4,
-                  overflow: 'hidden',
-                  marginBottom: 20
-                }}>
-                  <div style={{
-                    width: `${((answeredQuestions.length) / generatedQuestions.length) * 100}%`,
-                    height: '100%',
-                    background: 'linear-gradient(90deg, #4CAF50, #8BC34A)',
-                    transition: 'width 0.3s ease'
-                  }} />
-                </div>
-              </div>
-            )}
-
-            <Interviewer 
-              question={getCurrentQuestion()} 
-              onSubmit={onSubmitResponse}
-              saving={saving}
-              isAnswered={isQuestionAnswered(currentQuestionIndex)}
-              disabled={analyzingAnswer || feedback !== null}
-            />
-
-            {(analyzingAnswer || feedback) && (
-              <FeedbackPanel
-                feedback={feedback}
-                loading={analyzingAnswer}
-                onContinue={handleFeedbackContinue}
-                questionNumber={currentQuestionIndex + 1}
-              />
-            )}
+            <button
+              onClick={() => setCurrentPage('resume')}
+              style={{
+                padding: '10px 24px',
+                borderRadius: 8,
+                border: 'none',
+                background: currentPage === 'resume' ? '#2196F3' : '#e0e0e0',
+                color: currentPage === 'resume' ? '#fff' : '#333',
+                fontSize: 16,
+                fontWeight: 600,
+                cursor: 'pointer',
+                transition: 'all 0.3s ease'
+              }}
+            >
+              📄 Resume Analyzer
+            </button>
 
             {generatedQuestions.length > 0 && (
               <div style={{
-                marginTop: 20,
+                padding: '10px 20px',
+                borderRadius: 8,
+                background: sessionId ? '#e8f5e9' : '#fff3e0',
+                color: sessionId ? '#2e7d32' : '#e65100',
+                fontSize: 14,
+                fontWeight: 600,
                 display: 'flex',
-                gap: 10,
-                alignItems: 'center'
+                alignItems: 'center',
+                gap: 8
               }}>
-                <button
-                  onClick={goToPreviousQuestion}
-                  disabled={currentQuestionIndex === 0}
-                  style={{
-                    padding: '10px 20px',
-                    borderRadius: 8,
-                    border: 'none',
-                    background: currentQuestionIndex === 0 ? '#ccc' : '#2196F3',
-                    color: '#fff',
-                    fontSize: 14,
-                    fontWeight: 600,
-                    cursor: currentQuestionIndex === 0 ? 'not-allowed' : 'pointer',
-                    opacity: currentQuestionIndex === 0 ? 0.5 : 1
-                  }}
-                >
-                  ← Previous
-                </button>
-
-                <span style={{
-                  padding: '8px 16px',
-                  background: '#f5f5f5',
-                  borderRadius: 8,
-                  fontSize: 14,
-                  fontWeight: 600
-                }}>
-                  {currentQuestionIndex + 1} / {generatedQuestions.length}
-                </span>
-
-                <button
-                  onClick={goToNextQuestion}
-                  disabled={currentQuestionIndex === generatedQuestions.length - 1}
-                  style={{
-                    padding: '10px 20px',
-                    borderRadius: 8,
-                    border: 'none',
-                    background: currentQuestionIndex === generatedQuestions.length - 1 ? '#ccc' : '#2196F3',
-                    color: '#fff',
-                    fontSize: 14,
-                    fontWeight: 600,
-                    cursor: currentQuestionIndex === generatedQuestions.length - 1 ? 'not-allowed' : 'pointer',
-                    opacity: currentQuestionIndex === generatedQuestions.length - 1 ? 0.5 : 1
-                  }}
-                >
-                  Next →
-                </button>
+                {sessionId ? '✓' : '⏳'} {generatedQuestions.length} Questions | {answeredQuestions.length} Answered
+                {!sessionId && <span style={{ fontSize: 12, opacity: 0.8 }}>(Preparing...)</span>}
               </div>
             )}
 
-            {generatedQuestions.length > 0 && (
-              <div style={{
-                marginTop: 30,
-                padding: 20,
-                background: '#fff',
-                borderRadius: 12,
-                boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
-                maxWidth: 800,
-                width: '100%'
-              }}>
-                <h3 style={{ marginBottom: 15, fontSize: 18, color: '#333' }}>📝 All Questions:</h3>
-                <div style={{ maxHeight: 300, overflowY: 'auto' }}>
-                  {generatedQuestions.map((q, i) => (
-                    <div
-                      key={i}
-                      onClick={() => setCurrentQuestionIndex(i)}
-                      style={{
-                        padding: 12,
-                        marginBottom: 8,
-                        borderRadius: 8,
-                        background: i === currentQuestionIndex ? '#e3f2fd' : '#f5f5f5',
-                        cursor: 'pointer',
-                        border: i === currentQuestionIndex ? '2px solid #2196F3' : '1px solid transparent',
-                        transition: 'all 0.2s ease',
-                        position: 'relative'
-                      }}
-                    >
-                      {isQuestionAnswered(i) && (
-                        <span style={{
-                          position: 'absolute',
-                          right: 12,
-                          top: 12,
-                          color: '#4CAF50',
-                          fontSize: 16,
-                          fontWeight: 'bold'
-                        }}>
-                          ✓
-                        </span>
-                      )}
-                      <p style={{ margin: 0, fontSize: 14, color: '#333', paddingRight: 30 }}>
-                        <strong>Q{i + 1}:</strong> {q}
+            {answeredQuestions.length === generatedQuestions.length && generatedQuestions.length > 0 && (
+              <button
+                onClick={() => setShowReport(true)}
+                style={{
+                  padding: '10px 24px',
+                  borderRadius: 8,
+                  border: 'none',
+                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  color: '#fff',
+                  fontSize: 16,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease',
+                  boxShadow: '0 4px 15px rgba(102, 126, 234, 0.4)'
+                }}
+              >
+                📊 View Report
+              </button>
+            )}
+          </nav>
+
+          {/* Page Content */}
+          {currentPage === 'interviewer' ? (
+            <div>
+              <div
+                style={{
+                  display: 'flex',          
+                  flexDirection: 'column', 
+                  justifyContent: 'center',
+                  alignItems: 'center', 
+                  minHeight: 'calc(100vh - 60px)',
+                  padding: 16,
+                  boxSizing: 'border-box',
+                }}
+              >
+                <h1 style={{ marginBottom: 10 }}>Virtual Interviewer</h1>
+                
+                {generatedQuestions.length > 0 && (
+                  <div style={{
+                    marginBottom: 20,
+                    width: '100%',
+                    maxWidth: 1000
+                  }}>
+                    {/* Current Question Highlight */}
+                    <div style={{
+                      padding: '25px 35px',
+                      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                      borderRadius: 16,
+                      color: '#fff',
+                      boxShadow: '0 8px 20px rgba(102, 126, 234, 0.4)',
+                      marginBottom: 15
+                    }}>
+                      <div style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        marginBottom: 15
+                      }}>
+                        <p style={{ margin: 0, fontSize: 14, opacity: 0.9, fontWeight: 600 }}>
+                          QUESTION {currentQuestionIndex + 1} OF {generatedQuestions.length}
+                        </p>
+                        {isQuestionAnswered(currentQuestionIndex) && (
+                          <span style={{
+                            padding: '4px 12px',
+                            background: '#4CAF50',
+                            borderRadius: 12,
+                            fontSize: 12,
+                            fontWeight: 600
+                          }}>
+                            ✓ ANSWERED
+                          </span>
+                        )}
+                      </div>
+                      <p style={{ margin: 0, fontSize: 20, fontWeight: 600, lineHeight: 1.5 }}>
+                        {getCurrentQuestion()}
                       </p>
                     </div>
-                  ))}
-                </div>
+
+                    {/* Progress Bar */}
+                    <div style={{
+                      width: '100%',
+                      height: 8,
+                      background: '#e0e0e0',
+                      borderRadius: 4,
+                      overflow: 'hidden',
+                      marginBottom: 20
+                    }}>
+                      <div style={{
+                        width: `${((answeredQuestions.length) / generatedQuestions.length) * 100}%`,
+                        height: '100%',
+                        background: 'linear-gradient(90deg, #4CAF50, #8BC34A)',
+                        transition: 'width 0.3s ease'
+                      }} />
+                    </div>
+                  </div>
+                )}
+
+                <Interviewer 
+                  question={getCurrentQuestion()} 
+                  onSubmit={onSubmitResponse}
+                  saving={saving}
+                  isAnswered={isQuestionAnswered(currentQuestionIndex)}
+                  disabled={analyzingAnswer || feedback !== null}
+                />
+
+                {(analyzingAnswer || feedback) && (
+                  <FeedbackPanel
+                    feedback={feedback}
+                    loading={analyzingAnswer}
+                    onContinue={handleFeedbackContinue}
+                    questionNumber={currentQuestionIndex + 1}
+                  />
+                )}
+
+                {generatedQuestions.length > 0 && (
+                  <div style={{
+                    marginTop: 20,
+                    display: 'flex',
+                    gap: 10,
+                    alignItems: 'center'
+                  }}>
+                    <button
+                      onClick={goToPreviousQuestion}
+                      disabled={currentQuestionIndex === 0}
+                      style={{
+                        padding: '10px 20px',
+                        borderRadius: 8,
+                        border: 'none',
+                        background: currentQuestionIndex === 0 ? '#ccc' : '#2196F3',
+                        color: '#fff',
+                        fontSize: 14,
+                        fontWeight: 600,
+                        cursor: currentQuestionIndex === 0 ? 'not-allowed' : 'pointer',
+                        opacity: currentQuestionIndex === 0 ? 0.5 : 1
+                      }}
+                    >
+                      ← Previous
+                    </button>
+
+                    <span style={{
+                      padding: '8px 16px',
+                      background: '#f5f5f5',
+                      borderRadius: 8,
+                      fontSize: 14,
+                      fontWeight: 600
+                    }}>
+                      {currentQuestionIndex + 1} / {generatedQuestions.length}
+                    </span>
+
+                    <button
+                      onClick={goToNextQuestion}
+                      disabled={currentQuestionIndex === generatedQuestions.length - 1}
+                      style={{
+                        padding: '10px 20px',
+                        borderRadius: 8,
+                        border: 'none',
+                        background: currentQuestionIndex === generatedQuestions.length - 1 ? '#ccc' : '#2196F3',
+                        color: '#fff',
+                        fontSize: 14,
+                        fontWeight: 600,
+                        cursor: currentQuestionIndex === generatedQuestions.length - 1 ? 'not-allowed' : 'pointer',
+                        opacity: currentQuestionIndex === generatedQuestions.length - 1 ? 0.5 : 1
+                      }}
+                    >
+                      Next →
+                    </button>
+                  </div>
+                )}
+
+                {generatedQuestions.length > 0 && (
+                  <div style={{
+                    marginTop: 30,
+                    padding: 20,
+                    background: '#fff',
+                    borderRadius: 12,
+                    boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
+                    maxWidth: 800,
+                    width: '100%'
+                  }}>
+                    <h3 style={{ marginBottom: 15, fontSize: 18, color: '#333' }}>📝 All Questions:</h3>
+                    <div style={{ maxHeight: 300, overflowY: 'auto' }}>
+                      {generatedQuestions.map((q, i) => (
+                        <div
+                          key={i}
+                          onClick={() => setCurrentQuestionIndex(i)}
+                          style={{
+                            padding: 12,
+                            marginBottom: 8,
+                            borderRadius: 8,
+                            background: i === currentQuestionIndex ? '#e3f2fd' : '#f5f5f5',
+                            cursor: 'pointer',
+                            border: i === currentQuestionIndex ? '2px solid #2196F3' : '1px solid transparent',
+                            transition: 'all 0.2s ease',
+                            position: 'relative'
+                          }}
+                        >
+                          {isQuestionAnswered(i) && (
+                            <span style={{
+                              position: 'absolute',
+                              right: 12,
+                              top: 12,
+                              color: '#4CAF50',
+                              fontSize: 16,
+                              fontWeight: 'bold'
+                            }}>
+                              ✓
+                            </span>
+                          )}
+                          <p style={{ margin: 0, fontSize: 14, color: '#333', paddingRight: 30 }}>
+                            <strong>Q{i + 1}:</strong> {q}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
-            )}
-          </div>
-        </div>
-      ) : (
-        <ResumeUpload onQuestionsGenerated={handleQuestionsGenerated} />
+            </div>
+          ) : (
+            <ResumeUpload onQuestionsGenerated={handleQuestionsGenerated} />
+          )}
+        </>
       )}
     </div>
   )
