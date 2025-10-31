@@ -1,33 +1,73 @@
-# Logs
-logs
-*.log
+# Python
+venv/
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Environment Variables
+.env
+.env.local
+.env.*.local
+config.py
+
+# Node.js
+node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-pnpm-debug.log*
-lerna-debug.log*
+package-lock.json
 
-node_modules
-dist
-dist-ssr
-*.local
+# React / Vite
+dist/
+.cache/
+.vite/
 
-# Editor directories and files
-.vscode/*
-!.vscode/extensions.json
-.idea
+# Database
+*.sql
+*.sqlite
+*.db
+
+# Uploaded Files
+Smart_Resume_Analyser_App-master/Uploaded_Resumes/*
+!Smart_Resume_Analyser_App-master/Uploaded_Resumes/.gitkeep
+Smart_Resume_Analyser_App-master/Interview_Recordings/*
+!Smart_Resume_Analyser_App-master/Interview_Recordings/.gitkeep
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
 .DS_Store
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
 
-venv/
-   __pycache__/
-   *.pyc
-   *.pyo
-   *.pyd
-   .env
-   *.log
-   .DS_Store
+# Logs
+*.log
+logs/
+
+# Testing
+coverage/
+.nyc_output/
+.pytest_cache/
+
+# OS
+Thumbs.db
+.DS_Store
