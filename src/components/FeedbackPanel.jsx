@@ -4,11 +4,20 @@ export default function FeedbackPanel({
   feedback, 
   loading, 
   onContinue,
-  questionNumber 
+  questionNumber,
+  darkMode = true,
+  theme = {}
 }) {
   
   if (!loading && !feedback) {
     return null
+  }
+
+  const getScoreColor = (score) => {
+    if (score >= 8) return theme.success
+    if (score >= 6) return darkMode ? '#8BC34A' : '#7CB342'
+    if (score >= 4) return theme.warning
+    return theme.error
   }
 
   return (
@@ -19,13 +28,15 @@ export default function FeedbackPanel({
       transform: 'translateY(-50%)',
       width: 350,
       maxHeight: '80vh',
-      background: '#fff',
+      background: theme.bgCard,
       borderRadius: 16,
-      boxShadow: '0 10px 40px rgba(0,0,0,0.2)',
+      boxShadow: `0 8px 32px ${theme.shadow}`,
       padding: 25,
       boxSizing: 'border-box',
       zIndex: 1000,
-      animation: 'slideIn 0.3s ease-out'
+      animation: 'slideIn 0.3s ease-out',
+      border: `1px solid ${theme.border}`,
+      backdropFilter: 'blur(20px)'
     }}>
       <style>{`
         @keyframes slideIn {
@@ -54,10 +65,19 @@ export default function FeedbackPanel({
           }}>
             🤖
           </div>
-          <h3 style={{ margin: '0 0 10px 0', fontSize: 18, color: '#333' }}>
+          <h3 style={{ 
+            margin: '0 0 10px 0', 
+            fontSize: 18, 
+            color: theme.text,
+            fontWeight: 600
+          }}>
             Analyzing Your Answer...
           </h3>
-          <p style={{ margin: 0, fontSize: 14, color: '#666' }}>
+          <p style={{ 
+            margin: 0, 
+            fontSize: 14, 
+            color: theme.textSecondary
+          }}>
             Our AI is reviewing your response
           </p>
         </div>
@@ -69,28 +89,50 @@ export default function FeedbackPanel({
             alignItems: 'center',
             marginBottom: 20,
             paddingBottom: 15,
-            borderBottom: '2px solid #f0f0f0'
+            borderBottom: `1px solid ${theme.border}`
           }}>
-            <h3 style={{ margin: 0, fontSize: 18, color: '#333' }}>
+            <h3 style={{ 
+              margin: 0, 
+              fontSize: 18, 
+              color: theme.text,
+              fontWeight: 700
+            }}>
               📊 Answer Feedback
             </h3>
-            <span style={{ fontSize: 12, color: '#999', fontWeight: 600 }}>
+            <span style={{ 
+              fontSize: 12, 
+              color: theme.textTertiary, 
+              fontWeight: 600,
+              background: theme.bgSecondary,
+              padding: '4px 10px',
+              borderRadius: 12
+            }}>
               Q{questionNumber}
             </span>
           </div>
 
           <div style={{
             textAlign: 'center',
-            padding: '20px 0',
+            padding: '24px',
             marginBottom: 20,
-            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-            borderRadius: 12,
-            color: '#fff'
+            background: getScoreColor(feedback.score),
+            borderRadius: 16,
+            color: '#fff',
+            boxShadow: `0 4px 16px ${getScoreColor(feedback.score)}40`
           }}>
-            <div style={{ fontSize: 42, fontWeight: 'bold', marginBottom: 5 }}>
+            <div style={{ 
+              fontSize: 48, 
+              fontWeight: 'bold', 
+              marginBottom: 8,
+              letterSpacing: '-2px'
+            }}>
               {feedback.score}/10
             </div>
-            <div style={{ fontSize: 14, opacity: 0.9 }}>
+            <div style={{ 
+              fontSize: 15, 
+              opacity: 0.95,
+              fontWeight: 600
+            }}>
               {feedback.score >= 8 ? 'Excellent!' : 
                feedback.score >= 6 ? 'Good Job!' : 
                feedback.score >= 4 ? 'Fair' : 'Needs Work'}
@@ -98,41 +140,57 @@ export default function FeedbackPanel({
           </div>
 
           <div style={{
-            marginBottom: 15,
-            padding: 15,
-            background: '#e8f5e9',
-            borderRadius: 8,
-            borderLeft: '4px solid #4CAF50'
+            marginBottom: 12,
+            padding: 16,
+            background: darkMode ? theme.success + '15' : '#E8F5E9',
+            borderRadius: 12,
+            borderLeft: `3px solid ${theme.success}`,
+            transition: 'all 0.3s ease'
           }}>
             <div style={{
               fontSize: 13,
-              fontWeight: 600,
-              color: '#2e7d32',
-              marginBottom: 8
+              fontWeight: 700,
+              color: darkMode ? theme.success : '#2E7D32',
+              marginBottom: 8,
+              textTransform: 'uppercase',
+              letterSpacing: '0.5px'
             }}>
               ✅ What Was Good
             </div>
-            <p style={{ margin: 0, fontSize: 13, lineHeight: 1.6, color: '#1b5e20' }}>
+            <p style={{ 
+              margin: 0, 
+              fontSize: 14, 
+              lineHeight: 1.6, 
+              color: darkMode ? theme.textSecondary : '#1B5E20'
+            }}>
               {feedback.good}
             </p>
           </div>
 
           <div style={{
-            marginBottom: 20,
-            padding: 15,
-            background: '#fff3e0',
-            borderRadius: 8,
-            borderLeft: '4px solid #FF9800'
+            marginBottom: 24,
+            padding: 16,
+            background: darkMode ? theme.warning + '15' : '#FFF3E0',
+            borderRadius: 12,
+            borderLeft: `3px solid ${theme.warning}`,
+            transition: 'all 0.3s ease'
           }}>
             <div style={{
               fontSize: 13,
-              fontWeight: 600,
-              color: '#e65100',
-              marginBottom: 8
+              fontWeight: 700,
+              color: darkMode ? theme.warning : '#E65100',
+              marginBottom: 8,
+              textTransform: 'uppercase',
+              letterSpacing: '0.5px'
             }}>
-              ⚠️ Room for Improvement
+              💡 Room for Improvement
             </div>
-            <p style={{ margin: 0, fontSize: 13, lineHeight: 1.6, color: '#e65100' }}>
+            <p style={{ 
+              margin: 0, 
+              fontSize: 14, 
+              lineHeight: 1.6, 
+              color: darkMode ? theme.textSecondary : '#E65100'
+            }}>
               {feedback.improve}
             </p>
           </div>
@@ -142,13 +200,15 @@ export default function FeedbackPanel({
             style={{
               width: '100%',
               padding: '14px 20px',
-              borderRadius: 8,
+              borderRadius: 12,
               border: 'none',
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              background: theme.accent,
               color: '#fff',
               fontSize: 15,
               fontWeight: 600,
-              cursor: 'pointer'
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+              boxShadow: `0 4px 16px ${theme.shadow}`
             }}
           >
             Continue to Next Question →

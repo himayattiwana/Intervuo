@@ -6,7 +6,9 @@ export default function Interviewer({
   onSubmit = (data) => console.log(data),
   saving = false,
   isAnswered = false,
-  disabled = false
+  disabled = false,
+  darkMode = true,
+  theme = {}
 }) {
   const [recording, setRecording] = useState(false)
   const [manualText, setManualText] = useState('')
@@ -31,9 +33,15 @@ export default function Interviewer({
 
   if (!browserSupportsSpeechRecognition) {
     return (
-      <div style={{ padding: 20, textAlign: 'center' }}>
-        <h3>Browser doesn't support speech recognition</h3>
-        <p>Please use Google Chrome or Microsoft Edge</p>
+      <div style={{ 
+        padding: 20, 
+        textAlign: 'center',
+        background: theme.bgCard,
+        borderRadius: 16,
+        border: `1px solid ${theme.border}`
+      }}>
+        <h3 style={{ color: theme.text }}>Browser doesn't support speech recognition</h3>
+        <p style={{ color: theme.textSecondary }}>Please use Google Chrome or Microsoft Edge</p>
       </div>
     )
   }
@@ -148,11 +156,13 @@ export default function Interviewer({
         display: 'flex',
         gap: 24,
         width: '100%',
-        background: '#fff',
+        background: theme.bgCard,
         borderRadius: 16,
-        boxShadow: '0 10px 30px rgba(0,0,0,0.1)',
+        boxShadow: `0 4px 20px ${theme.shadow}`,
         padding: 20,
         boxSizing: 'border-box',
+        border: `1px solid ${theme.border}`,
+        transition: 'all 0.3s ease'
       }}>
         {/* Video Section */}
         <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
@@ -160,7 +170,15 @@ export default function Interviewer({
             ref={mediaRef}
             autoPlay
             muted
-            style={{ width: '100%', height: '100%', borderRadius: 12, background: '#000', objectFit: 'cover', minHeight: 400 }}
+            style={{ 
+              width: '100%', 
+              height: '100%', 
+              borderRadius: 12, 
+              background: '#000', 
+              objectFit: 'cover', 
+              minHeight: 400,
+              border: `1px solid ${theme.border}`
+            }}
           />
         </div>
 
@@ -175,16 +193,18 @@ export default function Interviewer({
             style={{ 
               width: '100%', 
               flex: 1, 
-              borderRadius: 8, 
-              border: '1px solid #ccc', 
+              borderRadius: 12, 
+              border: `1px solid ${theme.border}`, 
               padding: 15, 
               resize: 'none', 
               fontSize: 15,
-              background: recording ? '#f0f9ff' : '#fff',
+              background: recording ? (darkMode ? '#0A2540' : '#E3F2FD') : theme.bgSecondary,
+              color: theme.text,
               cursor: recording ? 'not-allowed' : 'text',
               fontFamily: 'inherit',
               lineHeight: 1.6,
-              minHeight: 200
+              minHeight: 200,
+              transition: 'all 0.2s ease'
             }}
           />
 
@@ -195,14 +215,16 @@ export default function Interviewer({
                 disabled={saving || disabled}
                 style={{ 
                   padding: '12px 20px', 
-                  borderRadius: 8, 
+                  borderRadius: 12, 
                   border: 'none', 
-                  background: (saving || disabled) ? '#ccc' : '#4CAF50', 
+                  background: (saving || disabled) ? theme.border : theme.success, 
                   color: '#fff', 
                   fontWeight: 600,
                   fontSize: 14,
                   cursor: (saving || disabled) ? 'not-allowed' : 'pointer',
-                  opacity: (saving || disabled) ? 0.6 : 1
+                  opacity: (saving || disabled) ? 0.6 : 1,
+                  transition: 'all 0.2s ease',
+                  boxShadow: (saving || disabled) ? 'none' : `0 4px 12px ${theme.shadow}`
                 }}
               >
                 🎤 Start Recording
@@ -218,14 +240,16 @@ export default function Interviewer({
                 disabled={disabled}
                 style={{ 
                   padding: '12px 20px', 
-                  borderRadius: 8, 
+                  borderRadius: 12, 
                   border: 'none', 
-                  background: disabled ? '#ccc' : '#f44336', 
+                  background: disabled ? theme.border : theme.error, 
                   color: '#fff', 
                   fontWeight: 600,
                   fontSize: 14,
                   cursor: disabled ? 'not-allowed' : 'pointer',
-                  opacity: disabled ? 0.6 : 1
+                  opacity: disabled ? 0.6 : 1,
+                  transition: 'all 0.2s ease',
+                  boxShadow: disabled ? 'none' : `0 4px 12px ${theme.shadow}`
                 }}
               >
                 ⏹️ Stop Recording
@@ -238,9 +262,9 @@ export default function Interviewer({
               disabled={saving || !finalTranscript.trim() || disabled}
               style={{ 
                 padding: '12px 24px', 
-                borderRadius: 8, 
+                borderRadius: 12, 
                 border: 'none', 
-                background: (saving || !finalTranscript.trim() || disabled) ? '#ccc' : '#2196F3',
+                background: (saving || !finalTranscript.trim() || disabled) ? theme.border : theme.accent,
                 color: '#fff', 
                 fontWeight: 600,
                 fontSize: 14,
@@ -248,7 +272,9 @@ export default function Interviewer({
                 opacity: (saving || !finalTranscript.trim() || disabled) ? 0.6 : 1,
                 display: 'flex',
                 alignItems: 'center',
-                gap: 8
+                gap: 8,
+                transition: 'all 0.2s ease',
+                boxShadow: (saving || !finalTranscript.trim() || disabled) ? 'none' : `0 4px 12px ${theme.shadow}`
               }}
               title={disabled ? "Please wait for feedback" : "Save answer and move to next question"}
             >
@@ -260,14 +286,15 @@ export default function Interviewer({
               disabled={saving || disabled}
               style={{ 
                 padding: '12px 20px', 
-                borderRadius: 8, 
-                border: '1px solid #ccc', 
-                background: '#fff', 
-                color: '#333', 
+                borderRadius: 12, 
+                border: `1px solid ${theme.border}`, 
+                background: theme.bgCard, 
+                color: theme.textSecondary, 
                 fontWeight: 500,
                 fontSize: 14,
                 cursor: (saving || disabled) ? 'not-allowed' : 'pointer',
-                opacity: (saving || disabled) ? 0.6 : 1
+                opacity: (saving || disabled) ? 0.6 : 1,
+                transition: 'all 0.2s ease'
               }}
               title="Clear text and start over"
             >
@@ -276,12 +303,13 @@ export default function Interviewer({
 
             {recording && listening && (
               <span style={{ 
-                color: '#4CAF50', 
+                color: theme.success, 
                 fontSize: 14, 
                 fontWeight: 600,
                 padding: '8px 12px',
-                background: '#e8f5e9',
-                borderRadius: 8
+                background: darkMode ? theme.success + '20' : '#E8F5E9',
+                borderRadius: 12,
+                transition: 'all 0.2s ease'
               }}>
                 🎤 Listening...
               </span>
@@ -289,20 +317,31 @@ export default function Interviewer({
 
             {saving && (
               <span style={{ 
-                color: '#2196F3', 
+                color: theme.accent, 
                 fontSize: 14, 
                 fontWeight: 600,
                 padding: '8px 12px',
-                background: '#e3f2fd',
-                borderRadius: 8
+                background: darkMode ? theme.accent + '20' : '#E3F2FD',
+                borderRadius: 12,
+                transition: 'all 0.2s ease'
               }}>
                 💾 Saving your answer...
               </span>
             )}
           </div>
 
-          <div style={{ fontSize: 13, opacity: 0.7, marginTop: 15, lineHeight: 1.5, padding: 10, background: '#f5f5f5', borderRadius: 8 }}>
-            💡 <strong>Tip:</strong> Record or type your answer, then click <strong>"Save & Next"</strong> to move to the next question. Your answer will be saved automatically!
+          <div style={{ 
+            fontSize: 13, 
+            color: theme.textTertiary, 
+            marginTop: 15, 
+            lineHeight: 1.5, 
+            padding: 12, 
+            background: theme.bgSecondary, 
+            borderRadius: 12,
+            border: `1px solid ${theme.border}`,
+            transition: 'all 0.3s ease'
+          }}>
+            💡 <strong style={{ color: theme.textSecondary }}>Tip:</strong> Record or type your answer, then click <strong style={{ color: theme.text }}>"Save & Next"</strong> to move to the next question. Your answer will be saved automatically!
           </div>
         </div>
       </div>
