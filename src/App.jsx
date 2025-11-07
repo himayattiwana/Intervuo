@@ -2,10 +2,12 @@ import Interviewer from './components/Interviewer'
 import ResumeUpload from './components/ResumeUpload'
 import FeedbackPanel from './components/FeedbackPanel'
 import InterviewReport from './components/InterviewReport'
+import Login from './components/Login'
 import { useState, useEffect } from 'react'
 import './App.css'
 
 function App() {  
+  const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [currentPage, setCurrentPage] = useState('resume')
   const [generatedQuestions, setGeneratedQuestions] = useState([])
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
@@ -16,9 +18,9 @@ function App() {
   const [feedback, setFeedback] = useState(null)
   const [analyzingAnswer, setAnalyzingAnswer] = useState(false)
   const [showReport, setShowReport] = useState(false)
-  const [darkMode, setDarkMode] = useState(true) // Default to dark mode
+  const [darkMode, setDarkMode] = useState(true)
 
-  // Instagram-inspired theme colors
+  // Theme colors
   const theme = {
     bg: darkMode ? '#000000' : '#FFFFFF',
     bgSecondary: darkMode ? '#1C1C1E' : '#F2F2F7',
@@ -33,6 +35,31 @@ function App() {
     error: darkMode ? '#FF453A' : '#FF3B30',
     purple: darkMode ? '#BF5AF2' : '#AF52DE',
     shadow: darkMode ? 'rgba(0,0,0,0.3)' : 'rgba(0,0,0,0.1)',
+  }
+
+  useEffect(() => {
+    const loggedIn = localStorage.getItem('intervuo_logged_in')
+    if (loggedIn === 'true') {
+      setIsLoggedIn(true)
+    }
+  }, [])
+
+  const handleLogin = () => {
+    setIsLoggedIn(true)
+    localStorage.setItem('intervuo_logged_in', 'true')
+  }
+
+  const handleLogout = () => {
+    setIsLoggedIn(false)
+    localStorage.removeItem('intervuo_logged_in')
+    setCurrentPage('resume')
+    setGeneratedQuestions([])
+    setCurrentQuestionIndex(0)
+    setSessionId(null)
+    setSessionInfo(null)
+    setAnsweredQuestions([])
+    setFeedback(null)
+    setShowReport(false)
   }
 
   const createSession = async (info) => {
@@ -205,6 +232,11 @@ function App() {
     return answeredQuestions.includes(index)
   }
 
+  // Show login page if not logged in
+  if (!isLoggedIn) {
+    return <Login onLogin={handleLogin} darkMode={darkMode} theme={theme} />
+  }
+
   return (
     <div style={{ 
       minHeight: '100vh', 
@@ -225,238 +257,189 @@ function App() {
             setAnsweredQuestions([])
             setSessionId(null)
             setSessionInfo(null)
-          }} 
+          }}
         />
       ) : (
         <>
-          {/* Modern Instagram-inspired Navigation */}
+          {/* Navigation Bar */}
           <nav style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            padding: '12px 24px',
-            background: darkMode ? 'rgba(28, 28, 30, 0.95)' : 'rgba(255, 255, 255, 0.95)',
+            background: theme.bgCard,
             borderBottom: `1px solid ${theme.border}`,
+            padding: '20px 30px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            backdropFilter: 'blur(20px)',
             position: 'sticky',
             top: 0,
-            zIndex: 1000,
-            backdropFilter: 'blur(20px)',
-            WebkitBackdropFilter: 'blur(20px)'
+            zIndex: 100,
+            boxShadow: `0 2px 10px ${theme.shadow}`
           }}>
-            {/* Logo */}
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 12
-            }}>
-              <div style={{
-                width: 40,
-                height: 40,
-                borderRadius: 12,
-                background: `linear-gradient(135deg, ${theme.accent}, ${theme.purple})`,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: 20,
-                fontWeight: 'bold',
-                color: '#fff',
-                boxShadow: `0 4px 12px ${theme.shadow}`
+            <div style={{ display: 'flex', alignItems: 'center', gap: 30 }}>
+              <h1 style={{
+                margin: 0,
+                fontSize: 28,
+                fontWeight: 800,
+                background: 'linear-gradient(135deg, #0A84FF 0%, #BF5AF2 100%)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                backgroundClip: 'text',
+                letterSpacing: '-1px'
               }}>
-                I
-              </div>
-              <span style={{
-                fontSize: 20,
-                fontWeight: 700,
-                letterSpacing: '-0.5px',
-                color: theme.text
-              }}>
-                Intervuo
-              </span>
-            </div>
+                INTERVUO
+              </h1>
 
-            {/* Center Navigation */}
-            <div style={{
-              display: 'flex',
-              gap: 8,
-              background: theme.bgSecondary,
-              padding: 4,
-              borderRadius: 12,
-            }}>
-              <button
-                onClick={() => setCurrentPage('resume')}
-                style={{
-                  padding: '8px 20px',
-                  borderRadius: 8,
-                  border: 'none',
-                  background: currentPage === 'resume' ? theme.accent : 'transparent',
-                  color: currentPage === 'resume' ? '#fff' : theme.textSecondary,
-                  fontSize: 14,
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease'
-                }}
-              >
-                Resume
-              </button>
-              
-              <button
-                onClick={() => setCurrentPage('interviewer')}
-                style={{
-                  padding: '8px 20px',
-                  borderRadius: 8,
-                  border: 'none',
-                  background: currentPage === 'interviewer' ? theme.accent : 'transparent',
-                  color: currentPage === 'interviewer' ? '#fff' : theme.textSecondary,
-                  fontSize: 14,
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease'
-                }}
-              >
-                Interview
-              </button>
-            </div>
-
-            {/* Right Side */}
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 12
-            }}>
-              {/* Progress Indicator */}
-              {generatedQuestions.length > 0 && (
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 8,
-                  padding: '6px 12px',
-                  background: theme.bgSecondary,
-                  borderRadius: 20,
-                  fontSize: 13,
-                  fontWeight: 600,
-                  color: theme.textSecondary
-                }}>
-                  <div style={{
-                    width: 8,
-                    height: 8,
-                    borderRadius: '50%',
-                    background: sessionId ? theme.success : theme.warning
-                  }} />
-                  {answeredQuestions.length}/{generatedQuestions.length}
-                </div>
-              )}
-
-              {/* View Report */}
-              {answeredQuestions.length === generatedQuestions.length && generatedQuestions.length > 0 && (
+              <div style={{ display: 'flex', gap: 8 }}>
                 <button
-                  onClick={() => setShowReport(true)}
+                  onClick={() => setCurrentPage('resume')}
                   style={{
-                    padding: '8px 16px',
-                    borderRadius: 20,
+                    padding: '10px 24px',
+                    borderRadius: 12,
                     border: 'none',
-                    background: theme.accent,
-                    color: '#fff',
+                    background: currentPage === 'resume' ? theme.accent : 'transparent',
+                    color: currentPage === 'resume' ? '#fff' : theme.textSecondary,
                     fontSize: 14,
                     fontWeight: 600,
                     cursor: 'pointer',
-                    transition: 'all 0.2s ease',
-                    boxShadow: `0 4px 12px ${theme.shadow}`
+                    transition: 'all 0.2s ease'
                   }}
                 >
-                  Report
+                  Resume Analyzer
                 </button>
+                <button
+                  onClick={() => setCurrentPage('interview')}
+                  disabled={generatedQuestions.length === 0}
+                  style={{
+                    padding: '10px 24px',
+                    borderRadius: 12,
+                    border: 'none',
+                    background: currentPage === 'interview' ? theme.accent : 'transparent',
+                    color: currentPage === 'interview' ? '#fff' : theme.textSecondary,
+                    fontSize: 14,
+                    fontWeight: 600,
+                    cursor: generatedQuestions.length === 0 ? 'not-allowed' : 'pointer',
+                    opacity: generatedQuestions.length === 0 ? 0.5 : 1,
+                    transition: 'all 0.2s ease'
+                  }}
+                >
+                  Virtual Interviewer
+                </button>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: 15 }}>
+              {sessionInfo && (
+                <div style={{
+                  padding: '8px 16px',
+                  borderRadius: 20,
+                  background: darkMode ? theme.success + '20' : '#E8F5E9',
+                  color: theme.success,
+                  fontSize: 13,
+                  fontWeight: 600,
+                  border: `1px solid ${theme.success}`
+                }}>
+                  Session Active
+                </div>
               )}
 
-              {/* Dark Mode Toggle */}
               <button
                 onClick={() => setDarkMode(!darkMode)}
                 style={{
-                  width: 40,
-                  height: 40,
+                  padding: '10px 16px',
                   borderRadius: 12,
                   border: `1px solid ${theme.border}`,
-                  background: theme.bgCard,
+                  background: theme.bgSecondary,
                   color: theme.text,
                   fontSize: 18,
                   cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  transition: 'all 0.2s ease',
-                  boxShadow: `0 2px 8px ${theme.shadow}`
+                  transition: 'all 0.2s ease'
                 }}
-                title={darkMode ? "Light Mode" : "Dark Mode"}
               >
                 {darkMode ? '☀️' : '🌙'}
+              </button>
+
+              <button
+                onClick={handleLogout}
+                style={{
+                  padding: '10px 20px',
+                  borderRadius: 12,
+                  border: `1px solid ${theme.error}`,
+                  background: 'transparent',
+                  color: theme.error,
+                  fontSize: 14,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                Logout
               </button>
             </div>
           </nav>
 
-          {/* Page Content */}
-          {currentPage === 'interviewer' ? (
+          {/* Main Content */}
+          {currentPage === 'interview' ? (
             <div style={{
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
-              minHeight: 'calc(100vh - 65px)',
-              padding: '32px 20px',
-              background: theme.bg
+              padding: '40px 20px',
+              minHeight: 'calc(100vh - 80px)'
             }}>
               {generatedQuestions.length > 0 ? (
                 <>
-                  {/* Question Card */}
                   <div style={{
                     width: '100%',
-                    maxWidth: 800,
-                    marginBottom: 24
+                    maxWidth: 1200,
+                    marginBottom: 30,
+                    background: theme.bgCard,
+                    borderRadius: 16,
+                    padding: 24,
+                    border: `1px solid ${theme.border}`,
+                    boxShadow: `0 4px 16px ${theme.shadow}`
                   }}>
                     <div style={{
-                      background: theme.bgCard,
-                      borderRadius: 16,
-                      padding: '24px',
-                      border: `1px solid ${theme.border}`,
-                      boxShadow: `0 4px 16px ${theme.shadow}`
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      marginBottom: 16
                     }}>
-                      <div style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        marginBottom: 16
-                      }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                         <span style={{
-                          fontSize: 13,
-                          fontWeight: 600,
-                          color: theme.textTertiary,
-                          textTransform: 'uppercase',
-                          letterSpacing: '1px'
+                          padding: '8px 16px',
+                          borderRadius: 20,
+                          background: theme.accent,
+                          color: '#fff',
+                          fontSize: 14,
+                          fontWeight: 700
                         }}>
                           Question {currentQuestionIndex + 1} of {generatedQuestions.length}
                         </span>
                         {isQuestionAnswered(currentQuestionIndex) && (
                           <span style={{
-                            padding: '4px 12px',
-                            background: theme.success + '20',
+                            padding: '8px 16px',
+                            borderRadius: 20,
+                            background: darkMode ? theme.success + '20' : '#E8F5E9',
                             color: theme.success,
-                            borderRadius: 12,
-                            fontSize: 12,
-                            fontWeight: 600
+                            fontSize: 14,
+                            fontWeight: 600,
+                            border: `1px solid ${theme.success}`
                           }}>
                             ✓ Answered
                           </span>
                         )}
                       </div>
-                      <p style={{
-                        margin: 0,
-                        fontSize: 18,
-                        fontWeight: 600,
-                        lineHeight: 1.5,
-                        color: theme.text
-                      }}>
-                        {getCurrentQuestion()}
-                      </p>
                     </div>
+                    <p style={{
+                      margin: 0,
+                      fontSize: 18,
+                      fontWeight: 600,
+                      lineHeight: 1.5,
+                      color: theme.text
+                    }}>
+                      {getCurrentQuestion()}
+                    </p>
 
-                    {/* Progress Bar */}
                     <div style={{
                       width: '100%',
                       height: 4,
@@ -475,7 +458,6 @@ function App() {
                     </div>
                   </div>
 
-                  {/* Interviewer Component */}
                   <Interviewer 
                     question={getCurrentQuestion()} 
                     onSubmit={onSubmitResponse}
@@ -486,7 +468,6 @@ function App() {
                     theme={theme}
                   />
 
-                  {/* Feedback Panel */}
                   {(analyzingAnswer || feedback) && (
                     <FeedbackPanel
                       feedback={feedback}
@@ -498,7 +479,6 @@ function App() {
                     />
                   )}
 
-                  {/* Navigation Buttons */}
                   <div style={{
                     display: 'flex',
                     gap: 12,
@@ -548,7 +528,6 @@ function App() {
                     </button>
                   </div>
 
-                  {/* All Questions List */}
                   <div style={{
                     width: '100%',
                     maxWidth: 800,
