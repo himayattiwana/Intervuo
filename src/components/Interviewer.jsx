@@ -12,9 +12,13 @@ export default function Interviewer({
 }) {
   const [recording, setRecording] = useState(false)
   const [manualText, setManualText] = useState('')
+  const [elapsedTime, setElapsedTime] = useState(0)
   const mediaRef = useRef(null)
   const recorderRef = useRef(null)
   const chunksRef = useRef([])
+  const frameCaptureIntervalRef = useRef(null)
+  const capturedFramesRef = useRef([])
+  const timerIntervalRef = useRef(null)
 
   const {
     transcript,
@@ -68,6 +72,12 @@ export default function Interviewer({
     startVideo()
 
     return () => {
+      if (frameCaptureIntervalRef.current) {
+        clearInterval(frameCaptureIntervalRef.current)
+      }
+      if (timerIntervalRef.current) {
+        clearInterval(timerIntervalRef.current)
+      }
       if (mediaRef.current?.srcObject) {
         const stream = mediaRef.current.srcObject
         stream.getTracks().forEach(track => track.stop())
@@ -75,6 +85,29 @@ export default function Interviewer({
       SpeechRecognition.stopListening()
     }
   }, [])
+
+  const captureFrame = () => {
+    if (mediaRef.current && mediaRef.current.readyState === 4) {
+      try {
+        const canvas = document.createElement('canvas')
+        canvas.width = mediaRef.current.videoWidth || 640
+        canvas.height = mediaRef.current.videoHeight || 480
+        const ctx = canvas.getContext('2d')
+        ctx.drawImage(mediaRef.current, 0, 0, canvas.width, canvas.height)
+        
+        // Convert to base64
+        const base64Image = canvas.toDataURL('image/jpeg', 0.8)
+        capturedFramesRef.current.push(base64Image)
+        
+        // Keep only last 10 frames (to avoid memory issues)
+        if (capturedFramesRef.current.length > 10) {
+          capturedFramesRef.current.shift()
+        }
+      } catch (err) {
+        console.error('Frame capture error:', err)
+      }
+    }
+  }
 
   const startRec = async () => {
     const stream = mediaRef.current?.srcObject
@@ -86,6 +119,9 @@ export default function Interviewer({
     try {
       resetTranscript();
       setManualText('');
+      capturedFramesRef.current = [] // Reset frames
+      setElapsedTime(0) // Reset timer
+      
       const rec = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp9,opus' })
       chunksRef.current = []
       
@@ -97,6 +133,19 @@ export default function Interviewer({
       rec.start()
       setRecording(true)
       SpeechRecognition.startListening({ continuous: true, language: 'en-IN' });
+      
+      // Start timer
+      timerIntervalRef.current = setInterval(() => {
+        setElapsedTime(prev => prev + 1)
+      }, 1000)
+      
+      // Start capturing frames every 2 seconds
+      frameCaptureIntervalRef.current = setInterval(() => {
+        captureFrame()
+      }, 2000)
+      
+      // Capture initial frame
+      setTimeout(() => captureFrame(), 500)
     } catch (err) {
       console.error('Recording error:', err)
       alert('Failed to start recording')
@@ -126,6 +175,24 @@ export default function Interviewer({
     }
     
     let audioBlob = null
+    let videoFrames = []
+    
+    // Stop frame capture
+    if (frameCaptureIntervalRef.current) {
+      clearInterval(frameCaptureIntervalRef.current)
+      frameCaptureIntervalRef.current = null
+    }
+    
+    // Stop timer
+    if (timerIntervalRef.current) {
+      clearInterval(timerIntervalRef.current)
+      timerIntervalRef.current = null
+    }
+    
+    // Capture final frame
+    if (recording) {
+      captureFrame()
+    }
     
     if (recording && recorderRef.current && recorderRef.current.state !== 'inactive') {
       recorderRef.current.stop()
@@ -139,15 +206,23 @@ export default function Interviewer({
       })
     }
     
+    // Get captured frames (sample every other frame to reduce payload size)
+    videoFrames = capturedFramesRef.current.filter((_, index) => index % 2 === 0)
+    if (videoFrames.length === 0 && capturedFramesRef.current.length > 0) {
+      videoFrames = [capturedFramesRef.current[0]] // At least send one frame
+    }
+    
     const currentTranscript = finalTranscript
     
     await onSubmit({ 
       audioBlob: audioBlob, 
-      transcript: currentTranscript 
+      transcript: currentTranscript,
+      videoFrames: videoFrames
     })
     
     resetTranscript()
     setManualText('')
+    capturedFramesRef.current = [] // Clear frames after submission
   }
 
   return (
@@ -236,6 +311,11 @@ export default function Interviewer({
                     recorderRef.current.stop()
                     setRecording(false)
                   }
+                  // Stop timer
+                  if (timerIntervalRef.current) {
+                    clearInterval(timerIntervalRef.current)
+                    timerIntervalRef.current = null
+                  }
                 }}
                 disabled={disabled}
                 style={{ 
@@ -254,6 +334,30 @@ export default function Interviewer({
               >
                 ⏹️ Stop Recording
               </button>
+            )}
+
+            {/* Timer Display */}
+            {recording && (
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                padding: '10px 16px',
+                background: darkMode ? theme.error + '20' : '#FFEBEE',
+                borderRadius: 12,
+                border: `2px solid ${theme.error}`,
+                fontWeight: 600,
+                fontSize: 16,
+                color: theme.error,
+                minWidth: 100,
+                justifyContent: 'center'
+              }}>
+                <span style={{ fontSize: 18 }}>⏱️</span>
+                <span>
+                  {Math.floor(elapsedTime / 60).toString().padStart(2, '0')}:
+                  {(elapsedTime % 60).toString().padStart(2, '0')}
+                </span>
+              </div>
             )}
 
             {/* Save & Next Button */}

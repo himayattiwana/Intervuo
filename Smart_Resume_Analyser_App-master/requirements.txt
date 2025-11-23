@@ -11,3 +11,12 @@ youtube-dl
 nltk
 pdfminer
 spacy==2.3.5
+flask
+flask-cors
+google-generativeai
+PyPDF2
+# Emotion detection - using OpenCV (no TensorFlow/pandas compatibility issues)
+opencv-python-headless
+numpy
+textblob
+vaderSentiment

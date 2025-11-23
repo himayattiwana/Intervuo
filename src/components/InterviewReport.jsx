@@ -553,6 +553,322 @@ export default function InterviewReport({ sessionId, onClose, darkMode = true, t
                   )}
                 </div>
               )}
+
+              {/* Sentiment & Emotion Analysis */}
+              {(answer.sentiment_data || answer.emotion_data || answer.content_score !== undefined) && (
+                <div style={{
+                  marginTop: 20,
+                  padding: 20,
+                  background: darkMode ? theme.bgSecondary : '#F9F9F9',
+                  borderRadius: 12,
+                  border: `1px solid ${theme.border}`
+                }}>
+                  <div style={{
+                    fontSize: 14,
+                    fontWeight: 700,
+                    color: theme.text,
+                    marginBottom: 15,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.5px'
+                  }}>
+                    📊 Detailed Analysis Breakdown
+                  </div>
+                  
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
+                    gap: 12,
+                    marginBottom: 15
+                  }}>
+                    {answer.content_score !== undefined && (
+                      <div style={{
+                        padding: 12,
+                        background: darkMode ? theme.accent + '20' : '#E3F2FD',
+                        borderRadius: 8,
+                        textAlign: 'center',
+                        border: `1px solid ${theme.accent}`
+                      }}>
+                        <div style={{ fontSize: 11, color: theme.textTertiary, marginBottom: 4 }}>
+                          Content
+                        </div>
+                        <div style={{ fontSize: 20, fontWeight: 'bold', color: theme.accent }}>
+                          {answer.content_score}/10
+                        </div>
+                      </div>
+                    )}
+                    {answer.sentiment_score !== undefined && (
+                      <div style={{
+                        padding: 12,
+                        background: darkMode ? theme.purple + '20' : '#F3E5F5',
+                        borderRadius: 8,
+                        textAlign: 'center',
+                        border: `1px solid ${theme.purple}`
+                      }}>
+                        <div style={{ fontSize: 11, color: theme.textTertiary, marginBottom: 4 }}>
+                          Tone
+                        </div>
+                        <div style={{ fontSize: 20, fontWeight: 'bold', color: theme.purple }}>
+                          {answer.sentiment_score}/10
+                        </div>
+                      </div>
+                    )}
+                    {answer.emotion_score !== undefined && (
+                      <div style={{
+                        padding: 12,
+                        background: darkMode ? theme.success + '20' : '#E8F5E9',
+                        borderRadius: 8,
+                        textAlign: 'center',
+                        border: `1px solid ${theme.success}`
+                      }}>
+                        <div style={{ fontSize: 11, color: theme.textTertiary, marginBottom: 4 }}>
+                          Expression
+                        </div>
+                        <div style={{ fontSize: 20, fontWeight: 'bold', color: theme.success }}>
+                          {answer.emotion_score}/10
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Sentiment Details */}
+                  {answer.sentiment_data && typeof answer.sentiment_data === 'object' && (
+                    <div style={{
+                      padding: 16,
+                      background: darkMode ? theme.bgCard : '#FFFFFF',
+                      borderRadius: 8,
+                      marginBottom: 10,
+                      borderLeft: `3px solid ${theme.purple}`
+                    }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: theme.text, marginBottom: 12 }}>
+                        💬 Sentiment & Tone Analysis
+                      </div>
+                      
+                      {/* Main State */}
+                      <div style={{ marginBottom: 12 }}>
+                        <div style={{ fontSize: 10, color: theme.textTertiary, marginBottom: 4 }}>Emotional State</div>
+                        <div style={{ 
+                          fontSize: 14, 
+                          fontWeight: 600, 
+                          color: answer.sentiment_data.emotional_state === 'confident' ? theme.success : 
+                                 answer.sentiment_data.emotional_state === 'nervous' ? theme.error :
+                                 answer.sentiment_data.emotional_state === 'hesitant' ? theme.warning : theme.text
+                        }}>
+                          {answer.sentiment_data.emotional_state || 'neutral'}
+                        </div>
+                        {answer.sentiment_data.overall_sentiment && (
+                          <div style={{ fontSize: 11, color: theme.textSecondary, marginTop: 4 }}>
+                            Overall: <strong>{answer.sentiment_data.overall_sentiment}</strong>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Metrics Grid */}
+                      <div style={{ 
+                        display: 'grid', 
+                        gridTemplateColumns: 'repeat(2, 1fr)', 
+                        gap: 10,
+                        marginBottom: 12
+                      }}>
+                        {answer.sentiment_data.confidence_score !== undefined && (
+                          <div>
+                            <div style={{ fontSize: 10, color: theme.textTertiary, marginBottom: 4 }}>Confidence</div>
+                            <div style={{ fontSize: 13, fontWeight: 600, color: theme.text }}>
+                              {(answer.sentiment_data.confidence_score * 100).toFixed(0)}%
+                            </div>
+                          </div>
+                        )}
+                        {answer.sentiment_data.clarity_score !== undefined && (
+                          <div>
+                            <div style={{ fontSize: 10, color: theme.textTertiary, marginBottom: 4 }}>Clarity</div>
+                            <div style={{ fontSize: 13, fontWeight: 600, color: theme.text }}>
+                              {(answer.sentiment_data.clarity_score * 100).toFixed(0)}%
+                            </div>
+                          </div>
+                        )}
+                        {answer.sentiment_data.nervousness_score !== undefined && (
+                          <div>
+                            <div style={{ fontSize: 10, color: theme.textTertiary, marginBottom: 4 }}>Nervousness</div>
+                            <div style={{ 
+                              fontSize: 13, 
+                              fontWeight: 600, 
+                              color: answer.sentiment_data.nervousness_score > 0.5 ? theme.error : theme.text
+                            }}>
+                              {(answer.sentiment_data.nervousness_score * 100).toFixed(0)}%
+                            </div>
+                          </div>
+                        )}
+                        {answer.sentiment_data.hesitation_score !== undefined && (
+                          <div>
+                            <div style={{ fontSize: 10, color: theme.textTertiary, marginBottom: 4 }}>Hesitation</div>
+                            <div style={{ fontSize: 13, fontWeight: 600, color: theme.text }}>
+                              {(answer.sentiment_data.hesitation_score * 100).toFixed(0)}%
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Tone Scores */}
+                      {answer.sentiment_data.tone_scores && typeof answer.sentiment_data.tone_scores === 'object' && (
+                        <div style={{ marginTop: 12, paddingTop: 12, borderTop: `1px solid ${theme.border}` }}>
+                          <div style={{ fontSize: 11, fontWeight: 600, color: theme.textSecondary, marginBottom: 8 }}>
+                            Tone Distribution:
+                          </div>
+                          <div style={{ display: 'flex', gap: 8 }}>
+                            {Object.entries(answer.sentiment_data.tone_scores).map(([tone, value]) => (
+                              <div key={tone} style={{
+                                flex: 1,
+                                padding: 8,
+                                background: darkMode ? theme.bgSecondary : '#F5F5F5',
+                                borderRadius: 6,
+                                textAlign: 'center'
+                              }}>
+                                <div style={{ fontSize: 10, color: theme.textTertiary, marginBottom: 4, textTransform: 'capitalize' }}>
+                                  {tone}
+                                </div>
+                                <div style={{ fontSize: 12, fontWeight: 600, color: theme.text }}>
+                                  {(value * 100).toFixed(0)}%
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Emotion Details */}
+                  {answer.emotion_data && typeof answer.emotion_data === 'object' && (
+                    <div style={{
+                      padding: 16,
+                      background: darkMode ? theme.bgCard : '#FFFFFF',
+                      borderRadius: 8,
+                      borderLeft: `3px solid ${theme.success}`,
+                      marginTop: 10
+                    }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: theme.text, marginBottom: 12 }}>
+                        😊 Facial Expression Analysis
+                      </div>
+                      
+                      {/* Emotion State & Dominant */}
+                      <div style={{ 
+                        display: 'grid', 
+                        gridTemplateColumns: '1fr 1fr', 
+                        gap: 10, 
+                        marginBottom: 12 
+                      }}>
+                        <div>
+                          <div style={{ fontSize: 10, color: theme.textTertiary, marginBottom: 4 }}>Interview State</div>
+                          <div style={{ 
+                            fontSize: 13, 
+                            fontWeight: 600, 
+                            color: answer.emotion_data.interview_state === 'confident' ? theme.success : 
+                                   answer.emotion_data.interview_state === 'nervous' ? theme.error :
+                                   answer.emotion_data.interview_state === 'hesitant' ? theme.warning : theme.text
+                          }}>
+                            {answer.emotion_data.interview_state || 'neutral'}
+                          </div>
+                        </div>
+                        {answer.emotion_data.dominant_emotion && (
+                          <div>
+                            <div style={{ fontSize: 10, color: theme.textTertiary, marginBottom: 4 }}>Dominant Emotion</div>
+                            <div style={{ fontSize: 13, fontWeight: 600, color: theme.text }}>
+                              {answer.emotion_data.dominant_emotion}
+                              {answer.emotion_data.max_confidence && (
+                                <span style={{ fontSize: 11, color: theme.textTertiary, marginLeft: 6 }}>
+                                  ({(answer.emotion_data.max_confidence * 100).toFixed(0)}%)
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Detailed Emotion Breakdown */}
+                      {answer.emotion_data.emotions && typeof answer.emotion_data.emotions === 'object' && (
+                        <div style={{ marginTop: 12 }}>
+                          <div style={{ fontSize: 11, fontWeight: 600, color: theme.textSecondary, marginBottom: 8 }}>
+                            Emotion Distribution:
+                          </div>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                            {Object.entries(answer.emotion_data.emotions)
+                              .sort((a, b) => b[1] - a[1])
+                              .map(([emotion, value]) => {
+                                const percentage = typeof value === 'number' ? (value * 100).toFixed(1) : '0.0';
+                                const emotionValue = typeof value === 'number' ? value : 0;
+                                const emotionColors = {
+                                  'happy': theme.success,
+                                  'sad': theme.error,
+                                  'angry': '#F44336',
+                                  'fear': '#9C27B0',
+                                  'surprise': theme.warning,
+                                  'disgust': '#795548',
+                                  'neutral': theme.textTertiary
+                                };
+                                return (
+                                  <div key={emotion} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                    <div style={{ 
+                                      width: 60, 
+                                      fontSize: 11, 
+                                      color: theme.textSecondary,
+                                      textTransform: 'capitalize',
+                                      fontWeight: 500
+                                    }}>
+                                      {emotion}:
+                                    </div>
+                                    <div style={{ 
+                                      flex: 1, 
+                                      height: 8, 
+                                      background: darkMode ? theme.bgSecondary : '#E0E0E0',
+                                      borderRadius: 4,
+                                      overflow: 'hidden'
+                                    }}>
+                                      <div style={{
+                                        width: `${emotionValue * 100}%`,
+                                        height: '100%',
+                                        background: emotionColors[emotion] || theme.accent,
+                                        transition: 'width 0.3s ease'
+                                      }} />
+                                    </div>
+                                    <div style={{ 
+                                      width: 40, 
+                                      fontSize: 11, 
+                                      color: theme.text,
+                                      fontWeight: 600,
+                                      textAlign: 'right'
+                                    }}>
+                                      {percentage}%
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Additional Info */}
+                      <div style={{ 
+                        display: 'flex', 
+                        gap: 15, 
+                        marginTop: 12, 
+                        paddingTop: 12, 
+                        borderTop: `1px solid ${theme.border}`,
+                        fontSize: 10,
+                        color: theme.textTertiary
+                      }}>
+                        {answer.emotion_data.confidence_level && (
+                          <div><strong>Detection:</strong> {answer.emotion_data.confidence_level}</div>
+                        )}
+                        {answer.emotion_data.frames_analyzed && (
+                          <div><strong>Frames:</strong> {answer.emotion_data.frames_analyzed}</div>
+                        )}
+                        {answer.emotion_data.detection_method && (
+                          <div><strong>Method:</strong> {answer.emotion_data.detection_method}</div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           ))}
         </div>

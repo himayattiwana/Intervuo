@@ -9,9 +9,21 @@ import google.generativeai as genai
 from config import GEMINI_API_KEY, NUM_QUESTIONS, DIFFICULTY_MAPPING, GEMINI_MODEL, TEMPERATURE
 import uuid
 from datetime import datetime
+from sentiment_emotion_analyzer import (
+    SentimentAnalyzer, 
+    FacialExpressionAnalyzer, 
+    calculate_combined_score,
+    TEXTBLOB_AVAILABLE,
+    VADER_AVAILABLE,
+    OPENCV_AVAILABLE
+)
 
 app = Flask(__name__)
 CORS(app)
+
+# Initialize sentiment and emotion analyzers
+sentiment_analyzer = SentimentAnalyzer()
+emotion_analyzer = FacialExpressionAnalyzer()
 
 # Configure Gemini AI
 genai.configure(api_key=GEMINI_API_KEY)
@@ -82,14 +94,51 @@ try:
         question_text TEXT NOT NULL,
         answer_text TEXT,
         audio_filename VARCHAR(255),
-        feedback_score INT DEFAULT NULL,
+        feedback_score DECIMAL(3,1) DEFAULT NULL,
         feedback_good TEXT,
         feedback_improve TEXT,
+        content_score DECIMAL(3,1) DEFAULT NULL,
+        sentiment_score DECIMAL(3,1) DEFAULT NULL,
+        emotion_score DECIMAL(3,1) DEFAULT NULL,
+        sentiment_data JSON,
+        emotion_data JSON,
         answered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (session_id) REFERENCES interview_sessions(session_id)
     );
     """
     db_cursor.execute(answers_table_sql)
+    
+    # Try to add new columns if table already exists (for backward compatibility)
+    # Update feedback_score to DECIMAL if it's INT
+    try:
+        db_cursor.execute("ALTER TABLE interview_answers MODIFY COLUMN feedback_score DECIMAL(3,1) DEFAULT NULL")
+    except:
+        pass  # Column might not exist or already correct type
+    
+    try:
+        db_cursor.execute("ALTER TABLE interview_answers ADD COLUMN content_score DECIMAL(3,1) DEFAULT NULL")
+    except:
+        pass  # Column already exists
+    
+    try:
+        db_cursor.execute("ALTER TABLE interview_answers ADD COLUMN sentiment_score DECIMAL(3,1) DEFAULT NULL")
+    except:
+        pass
+    
+    try:
+        db_cursor.execute("ALTER TABLE interview_answers ADD COLUMN emotion_score DECIMAL(3,1) DEFAULT NULL")
+    except:
+        pass
+    
+    try:
+        db_cursor.execute("ALTER TABLE interview_answers ADD COLUMN sentiment_data JSON")
+    except:
+        pass
+    
+    try:
+        db_cursor.execute("ALTER TABLE interview_answers ADD COLUMN emotion_data JSON")
+    except:
+        pass
     
     db_connection.commit()
     print("✅ Database tables created successfully")
@@ -549,8 +598,10 @@ def create_session():
 
 @app.route('/api/save-answer', methods=['POST'])
 def save_answer():
-    """Save interview answer to database"""
+    """Save interview answer to database with sentiment and emotion data"""
     try:
+        import json
+        
         session_id = request.form.get('session_id')
         question_number = request.form.get('question_number')
         question_text = request.form.get('question_text')
@@ -558,6 +609,13 @@ def save_answer():
         feedback_score = request.form.get('feedback_score')
         feedback_good = request.form.get('feedback_good')
         feedback_improve = request.form.get('feedback_improve')
+        
+        # Get sentiment and emotion data
+        content_score = request.form.get('content_score')
+        sentiment_score = request.form.get('sentiment_score')
+        emotion_score = request.form.get('emotion_score')
+        sentiment_data_json = request.form.get('sentiment_data')
+        emotion_data_json = request.form.get('emotion_data')
         
         print(f"📥 Received save request - Session: {session_id}, Q: {question_number}")
         
@@ -581,23 +639,52 @@ def save_answer():
                 print(f"💾 Saved audio: {audio_filename}")
         
         if db_cursor and db_connection:
-            insert_sql = """
-            INSERT INTO interview_answers 
-            (session_id, question_number, question_text, answer_text, audio_filename, 
-             feedback_score, feedback_good, feedback_improve)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-            """
-            values = (
-                session_id,
-                int(question_number),
-                question_text,
-                answer_text or '',
-                audio_filename,
-                int(feedback_score) if feedback_score else None,
-                feedback_good,
-                feedback_improve
-            )
-            db_cursor.execute(insert_sql, values)
+            # Check if columns exist, if not use basic insert
+            try:
+                insert_sql = """
+                INSERT INTO interview_answers 
+                (session_id, question_number, question_text, answer_text, audio_filename, 
+                 feedback_score, feedback_good, feedback_improve,
+                 content_score, sentiment_score, emotion_score, sentiment_data, emotion_data)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                """
+                values = (
+                    session_id,
+                    int(question_number),
+                    question_text,
+                    answer_text or '',
+                    audio_filename,
+                    float(feedback_score) if feedback_score else None,
+                    feedback_good,
+                    feedback_improve,
+                    float(content_score) if content_score else None,
+                    float(sentiment_score) if sentiment_score else None,
+                    float(emotion_score) if emotion_score else None,
+                    sentiment_data_json if sentiment_data_json else None,
+                    emotion_data_json if emotion_data_json else None
+                )
+                db_cursor.execute(insert_sql, values)
+            except Exception as e:
+                # Fallback to basic insert if new columns don't exist
+                print(f"⚠️ Using basic insert (new columns may not exist): {e}")
+                insert_sql = """
+                INSERT INTO interview_answers 
+                (session_id, question_number, question_text, answer_text, audio_filename, 
+                 feedback_score, feedback_good, feedback_improve)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                """
+                values = (
+                    session_id,
+                    int(question_number),
+                    question_text,
+                    answer_text or '',
+                    audio_filename,
+                    float(feedback_score) if feedback_score else None,
+                    feedback_good,
+                    feedback_improve
+                )
+                db_cursor.execute(insert_sql, values)
+            
             db_connection.commit()
             
             print(f"✅ Saved answer for Q{question_number} in session {session_id}")
@@ -620,6 +707,7 @@ def save_answer():
 def get_session_report(session_id):
     """Get complete interview report for a session"""
     try:
+        import json
         if db_cursor and db_connection:
             # Get session info
             session_query = """
@@ -633,16 +721,33 @@ def get_session_report(session_id):
             if not session_result:
                 return jsonify({"error": "Session not found"}), 404
             
-            # Get all answers with feedback
-            answers_query = """
-            SELECT question_number, question_text, answer_text, 
-                   feedback_score, feedback_good, feedback_improve, answered_at
-            FROM interview_answers
-            WHERE session_id = %s
-            ORDER BY question_number
-            """
-            db_cursor.execute(answers_query, (session_id,))
-            answers_results = db_cursor.fetchall()
+            # Get all answers with feedback (try to include new columns)
+            import json
+            try:
+                answers_query = """
+                SELECT question_number, question_text, answer_text, 
+                       feedback_score, feedback_good, feedback_improve,
+                       content_score, sentiment_score, emotion_score,
+                       sentiment_data, emotion_data, answered_at
+                FROM interview_answers
+                WHERE session_id = %s
+                ORDER BY question_number
+                """
+                db_cursor.execute(answers_query, (session_id,))
+                answers_results = db_cursor.fetchall()
+                has_new_columns = True
+            except:
+                # Fallback to basic query if new columns don't exist
+                answers_query = """
+                SELECT question_number, question_text, answer_text, 
+                       feedback_score, feedback_good, feedback_improve, answered_at
+                FROM interview_answers
+                WHERE session_id = %s
+                ORDER BY question_number
+                """
+                db_cursor.execute(answers_query, (session_id,))
+                answers_results = db_cursor.fetchall()
+                has_new_columns = False
             
             # Build response
             answers = []
@@ -650,15 +755,31 @@ def get_session_report(session_id):
             scored_answers = 0
             
             for row in answers_results:
-                answer_data = {
-                    "question_number": row[0],
-                    "question": row[1],
-                    "answer": row[2],
-                    "feedback_score": row[3],
-                    "feedback_good": row[4],
-                    "feedback_improve": row[5],
-                    "answered_at": str(row[6])
-                }
+                if has_new_columns and len(row) >= 12:
+                    answer_data = {
+                        "question_number": row[0],
+                        "question": row[1],
+                        "answer": row[2],
+                        "feedback_score": row[3],
+                        "feedback_good": row[4],
+                        "feedback_improve": row[5],
+                        "content_score": float(row[6]) if row[6] is not None else None,
+                        "sentiment_score": float(row[7]) if row[7] is not None else None,
+                        "emotion_score": float(row[8]) if row[8] is not None else None,
+                        "sentiment_data": json.loads(row[9]) if row[9] and isinstance(row[9], str) else (row[9] if row[9] else None),
+                        "emotion_data": json.loads(row[10]) if row[10] and isinstance(row[10], str) else (row[10] if row[10] else None),
+                        "answered_at": str(row[11])
+                    }
+                else:
+                    answer_data = {
+                        "question_number": row[0],
+                        "question": row[1],
+                        "answer": row[2],
+                        "feedback_score": row[3],
+                        "feedback_good": row[4],
+                        "feedback_improve": row[5],
+                        "answered_at": str(row[6])
+                    }
                 answers.append(answer_data)
                 
                 if row[3] is not None:
@@ -724,20 +845,51 @@ def get_session_answers(session_id):
 
 @app.route('/api/analyze-answer', methods=['POST'])
 def analyze_answer():
-    """Analyze interview answer using Gemini AI"""
+    """Analyze interview answer using Gemini AI + Sentiment + Emotion"""
     try:
         data = request.json
         question = data.get('question', '')
         answer = data.get('answer', '')
         field = data.get('field', 'General')
         level = data.get('level', 'Intermediate')
+        video_frames = data.get('video_frames', [])  # List of base64 encoded frames
         
         print(f"🤖 Analyzing answer for: {question[:50]}...")
         
         if not answer or not answer.strip():
             return jsonify({"error": "No answer provided"}), 400
         
-        # Create prompt for answer analysis
+        # 1. Analyze sentiment from text
+        print("📊 Analyzing sentiment...")
+        sentiment_data = sentiment_analyzer.analyze_sentiment(answer)
+        # Debug: Print sentiment analysis
+        print(f"📊 Sentiment state: {sentiment_data.get('emotional_state', 'unknown')}")
+        print(f"📊 Confidence: {sentiment_data.get('confidence_score', 0)}")
+        print(f"📊 Nervousness: {sentiment_data.get('nervousness_score', 0)}")
+        
+        # 2. Analyze facial expressions from video frames
+        print("😊 Analyzing facial expressions...")
+        print(f"📹 Received {len(video_frames) if video_frames else 0} video frames")
+        emotion_data = {}
+        if video_frames and len(video_frames) > 0:
+            emotion_data = emotion_analyzer.analyze_video_frames(video_frames)
+            # Debug: Print detected emotions
+            print(f"📊 Detected emotions: {emotion_data.get('emotions', {})}")
+            print(f"📊 Dominant emotion: {emotion_data.get('dominant_emotion', 'unknown')}")
+            print(f"📊 Interview state: {emotion_data.get('interview_state', 'unknown')}")
+            print(f"📊 Detection method: {emotion_data.get('detection_method', 'unknown')}")
+            print(f"📊 Frames analyzed: {emotion_data.get('frames_analyzed', 0)}")
+            
+            # Check if we got default/neutral (might indicate detection failure)
+            if emotion_data.get('interview_state') == 'neutral' and emotion_data.get('dominant_emotion') == 'neutral':
+                print("⚠️ WARNING: Got neutral state - emotion detection might have failed!")
+                print("⚠️ Check if DeepFace/FER is working properly")
+        else:
+            emotion_data = emotion_analyzer._default_emotion()
+            print("⚠️ No video frames provided for emotion analysis - using default")
+        
+        # 3. Get content-based score from Gemini AI
+        print("🧠 Analyzing content with AI...")
         prompt = f"""You are an expert technical interviewer analyzing a candidate's answer.
 
 QUESTION ASKED:
@@ -776,7 +928,7 @@ Now analyze the answer above:"""
         print(f"✅ Feedback generated: {feedback_text[:100]}...")
         
         # Parse the response
-        score = 5  # Default
+        content_score = 5  # Default
         good_points = "Good answer"
         improve_points = "Keep practicing"
         
@@ -785,23 +937,63 @@ Now analyze the answer above:"""
             line = line.strip()
             if line.startswith('SCORE:'):
                 try:
-                    score = int(re.findall(r'\d+', line)[0])
-                    score = max(1, min(10, score))  # Clamp between 1-10
+                    content_score = int(re.findall(r'\d+', line)[0])
+                    content_score = max(1, min(10, content_score))  # Clamp between 1-10
                 except:
-                    score = 5
+                    content_score = 5
             elif line.startswith('GOOD:'):
                 good_points = line.replace('GOOD:', '').strip()
             elif line.startswith('IMPROVE:'):
                 improve_points = line.replace('IMPROVE:', '').strip()
         
+        # 4. Calculate combined score
+        combined_score_data = calculate_combined_score(
+            content_score,
+            sentiment_data,
+            emotion_data
+        )
+        
+        final_score = combined_score_data['final_score']
+        
+        # Enhance feedback with sentiment/emotion insights
+        sentiment_insight = ""
+        emotion_insight = ""
+        
+        if sentiment_data.get('emotional_state') == 'nervous':
+            sentiment_insight = " Consider speaking more confidently and reducing filler words."
+        elif sentiment_data.get('emotional_state') == 'hesitant':
+            sentiment_insight = " Try to be more decisive in your responses."
+        elif sentiment_data.get('emotional_state') == 'confident':
+            sentiment_insight = " Great confidence in your delivery!"
+        
+        if emotion_data.get('interview_state') == 'nervous':
+            emotion_insight = " Your facial expressions suggest some nervousness - try to relax and maintain eye contact."
+        elif emotion_data.get('interview_state') == 'confident':
+            emotion_insight = " Your confident demeanor comes through well!"
+        
+        # Combine improve feedback
+        if sentiment_insight or emotion_insight:
+            improve_points = improve_points + sentiment_insight + emotion_insight
+        
         result = {
-            "score": score,
+            "score": final_score,
+            "content_score": content_score,
+            "sentiment_score": combined_score_data['sentiment_score'],
+            "emotion_score": combined_score_data['emotion_score'],
             "good": good_points,
             "improve": improve_points,
-            "success": True
+            "success": True,
+            "sentiment_data": sentiment_data,
+            "emotion_data": emotion_data,
+            "score_breakdown": {
+                "content": combined_score_data['content_score'],
+                "sentiment": combined_score_data['sentiment_score'],
+                "emotion": combined_score_data['emotion_score'],
+                "weights": combined_score_data.get('weights', {'content': 0.6, 'sentiment': 0.25, 'emotion': 0.15})
+            }
         }
         
-        print(f"📊 Score: {score}/10")
+        print(f"📊 Final Score: {final_score}/10 (Content: {content_score}, Sentiment: {combined_score_data['sentiment_score']}, Emotion: {combined_score_data['emotion_score']})")
         return jsonify(result), 200
         
     except Exception as e:
@@ -811,15 +1003,54 @@ Now analyze the answer above:"""
         # Return neutral feedback on error
         return jsonify({
             "score": 5,
+            "content_score": 5,
+            "sentiment_score": 5,
+            "emotion_score": 5,
             "good": "Answer recorded successfully",
             "improve": "Focus on providing more specific details",
             "success": True
         }), 200
 
+@app.route('/api/analyze-facial-expressions', methods=['POST'])
+def analyze_facial_expressions():
+    """Analyze facial expressions from video frames"""
+    try:
+        data = request.json
+        frames = data.get('frames', [])  # List of base64 encoded images
+        
+        if not frames:
+            return jsonify({"error": "No frames provided"}), 400
+        
+        print(f"😊 Analyzing {len(frames)} video frames...")
+        
+        emotion_data = emotion_analyzer.analyze_video_frames(frames)
+        
+        return jsonify({
+            "success": True,
+            "emotion_data": emotion_data
+        }), 200
+        
+    except Exception as e:
+        print(f"❌ Error analyzing facial expressions: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "emotion_data": emotion_analyzer._default_emotion()
+        }), 200
+
 @app.route('/api/health', methods=['GET'])
 def health_check():
     """Health check endpoint"""
-    return jsonify({"status": "healthy", "message": "Flask API is running with Gemini AI"}), 200
+    return jsonify({
+        "status": "healthy", 
+        "message": "Flask API is running with Gemini AI, Sentiment & Emotion Analysis",
+        "features": {
+            "sentiment_analysis": TEXTBLOB_AVAILABLE or VADER_AVAILABLE,
+            "facial_recognition": OPENCV_AVAILABLE
+        }
+    }), 200
 
 if __name__ == '__main__':
     print("=" * 60)

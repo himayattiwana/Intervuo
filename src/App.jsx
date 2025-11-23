@@ -100,9 +100,26 @@ function App() {
       formData.append('answer_text', answerData.transcript || '')
       
       if (answerData.feedback) {
-        formData.append('feedback_score', answerData.feedback.score)
-        formData.append('feedback_good', answerData.feedback.good)
-        formData.append('feedback_improve', answerData.feedback.improve)
+        formData.append('feedback_score', answerData.feedback.score || answerData.feedback.final_score || 5)
+        formData.append('feedback_good', answerData.feedback.good || '')
+        formData.append('feedback_improve', answerData.feedback.improve || '')
+        
+        // Add sentiment and emotion scores
+        if (answerData.feedback.content_score !== undefined) {
+          formData.append('content_score', answerData.feedback.content_score)
+        }
+        if (answerData.feedback.sentiment_score !== undefined) {
+          formData.append('sentiment_score', answerData.feedback.sentiment_score)
+        }
+        if (answerData.feedback.emotion_score !== undefined) {
+          formData.append('emotion_score', answerData.feedback.emotion_score)
+        }
+        if (answerData.feedback.sentiment_data) {
+          formData.append('sentiment_data', JSON.stringify(answerData.feedback.sentiment_data))
+        }
+        if (answerData.feedback.emotion_data) {
+          formData.append('emotion_data', JSON.stringify(answerData.feedback.emotion_data))
+        }
       }
       
       if (answerData.audioBlob) {
@@ -133,7 +150,7 @@ function App() {
     }
   }
 
-  const analyzeAnswer = async (answerText, questionText) => {
+  const analyzeAnswer = async (answerText, questionText, videoFrames = []) => {
     setAnalyzingAnswer(true)
     setFeedback(null)
     
@@ -145,7 +162,8 @@ function App() {
           question: questionText,
           answer: answerText,
           field: sessionInfo?.field || 'General',
-          level: sessionInfo?.level || 'Intermediate'
+          level: sessionInfo?.level || 'Intermediate',
+          video_frames: videoFrames || []
         })
       })
       
@@ -159,6 +177,9 @@ function App() {
       console.error('Error analyzing answer:', error)
       setFeedback({
         score: 5,
+        content_score: 5,
+        sentiment_score: 5,
+        emotion_score: 5,
         good: 'Answer recorded successfully',
         improve: 'Keep practicing and providing detailed responses',
         success: true
@@ -180,7 +201,8 @@ function App() {
 
   const onSubmitResponse = async (payload) => {
     console.log('Answer submitted:', payload)
-    const feedbackResult = await analyzeAnswer(payload.transcript, getCurrentQuestion())
+    const videoFrames = payload.videoFrames || []
+    const feedbackResult = await analyzeAnswer(payload.transcript, getCurrentQuestion(), videoFrames)
     if (feedbackResult) {
       await saveAnswer({
         ...payload,
