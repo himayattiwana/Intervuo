@@ -2,6 +2,7 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 import os
 import re
+import time
 from pdfminer.high_level import extract_text
 import random
 from Courses import ds_course, web_course, android_course, ios_course, uiux_course
@@ -366,6 +367,63 @@ def extract_resume_sections(resume_text):
     
     return sections
 
+
+def _normalize_finish_reason(value):
+    """Handle both numeric and string finish reason values from Gemini SDK."""
+    if value is None:
+        return None
+    try:
+        numeric_reason = int(value)
+        return numeric_reason
+    except (ValueError, TypeError):
+        normalized = str(value).upper()
+        mapping = {
+            "FINISH_REASON_UNSPECIFIED": 0,
+            "STOP": 1,
+            "SAFETY": 2,
+            "RECITATION": 3,
+            "MAX_TOKENS": 4,
+            "OTHER": 5,
+        }
+        return mapping.get(normalized, None)
+
+
+def _extract_gemini_text(response):
+    """Best-effort extraction of text segments from Gemini response."""
+    segments = []
+    if not response:
+        return segments
+
+    if getattr(response, "text", None):
+        segments.append(response.text)
+
+    candidates = getattr(response, "candidates", None) or []
+    for candidate in candidates:
+        finish_reason = _normalize_finish_reason(getattr(candidate, "finish_reason", None))
+        if finish_reason == 2:
+            # Candidate blocked by safety filter
+            continue
+
+        content = getattr(candidate, "content", None)
+        parts = getattr(content, "parts", None) if content else None
+        if parts:
+            for part in parts:
+                text_part = getattr(part, "text", None)
+                if text_part:
+                    segments.append(text_part)
+        if segments:
+            break
+
+    return segments
+
+
+def _get_block_reason(response):
+    feedback = getattr(response, "prompt_feedback", None)
+    if not feedback:
+        return None
+    return getattr(feedback, "block_reason", None) or getattr(feedback, "safety_ratings", None)
+
+
 def generate_interview_questions(skills, field, level, resume_text, name, email):
     """Generate interview questions using Google Gemini AI"""
     try:
@@ -419,11 +477,36 @@ Make each question feel different - vary length, tone, and structure. Be genuine
 
 Generate exactly {NUM_QUESTIONS} questions, numbered 1-{NUM_QUESTIONS}, nothing else:"""
 
-        response = model.generate_content(
-        prompt,
-        safety_settings=safety_settings
-        )
-        questions_text = response.text.strip()
+        raw_segments = []
+        block_reason = None
+        last_error = None
+        max_attempts = 3
+
+        for attempt in range(1, max_attempts + 1):
+            try:
+                response = model.generate_content(
+                    prompt,
+                    safety_settings=safety_settings
+                )
+                raw_segments = _extract_gemini_text(response)
+                block_reason = _get_block_reason(response)
+
+                if raw_segments:
+                    break
+
+                print(f"⚠️ Gemini attempt {attempt} returned no usable text. Block reason: {block_reason}")
+            except Exception as gen_error:
+                last_error = gen_error
+                print(f"⚠️ Gemini attempt {attempt} failed with error: {gen_error}")
+
+            if attempt < max_attempts:
+                time.sleep(1 * attempt)  # small backoff before retry
+
+        if not raw_segments:
+            reason_text = block_reason or last_error or "unknown"
+            raise ValueError(f"Gemini returned no usable content for questions (reason: {reason_text})")
+
+        questions_text = "\n".join(raw_segments).strip()
         
         print(f"📝 Raw questions from AI:\n{questions_text[:200]}...")
         
@@ -1062,4 +1145,4 @@ if __name__ == '__main__':
     print("💾 Session Management: Enabled")
     print("🏥 Health check: http://localhost:5000/api/health")
     print("=" * 60)
-    app.run(debug=True, port=5000, host='0.0.0.0')
+    app.run(debug=False, use_reloader=False, port=5000, host='0.0.0.0')

@@ -9,6 +9,10 @@ export default function ResumeUpload({ onQuestionsGenerated, darkMode = true, th
   const [error, setError] = useState('')
   const [scanProgress, setScanProgress] = useState(0)
 
+  const accentGradient = theme.primaryGradient || 'linear-gradient(135deg, #654622 0%, #906E2F 45%, #B68B49 100%)'
+  const accentColor = theme.accent || '#B68B49'
+  const shadowColor = 'rgba(0, 0, 0, 0.45)'
+
   const handleDrag = (e) => {
     e.preventDefault()
     e.stopPropagation()
@@ -133,9 +137,7 @@ export default function ResumeUpload({ onQuestionsGenerated, darkMode = true, th
         left: 0,
         right: 0,
         bottom: 0,
-        backgroundImage: darkMode
-          ? 'linear-gradient(rgba(10, 132, 255, 0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(10, 132, 255, 0.03) 1px, transparent 1px)'
-          : 'linear-gradient(rgba(102, 126, 234, 0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(102, 126, 234, 0.05) 1px, transparent 1px)',
+        backgroundImage: 'linear-gradient(rgba(182, 139, 73, 0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(182, 139, 73, 0.04) 1px, transparent 1px)',
         backgroundSize: '50px 50px',
         animation: 'gridMove 20s linear infinite',
         pointerEvents: 'none',
@@ -193,7 +195,7 @@ export default function ResumeUpload({ onQuestionsGenerated, darkMode = true, th
             fontWeight: 800,
             margin: 0,
             marginBottom: 15,
-            background: 'linear-gradient(135deg, #0A84FF 0%, #BF5AF2 50%, #FF9F0A 100%)',
+              background: accentGradient,
             WebkitBackgroundClip: 'text',
             WebkitTextFillColor: 'transparent',
             backgroundClip: 'text',
@@ -225,7 +227,7 @@ export default function ResumeUpload({ onQuestionsGenerated, darkMode = true, th
             animation: 'slideUp 0.5s ease-out',
             boxShadow: `0 10px 30px ${theme.error}30`
           }}>
-            ⚠️ {error}
+            {error}
           </div>
         )}
 
@@ -253,7 +255,7 @@ export default function ResumeUpload({ onQuestionsGenerated, darkMode = true, th
                   left: 0,
                   right: 0,
                   height: 3,
-                  background: 'linear-gradient(90deg, transparent, #0A84FF, transparent)',
+                  background: 'linear-gradient(90deg, transparent, #B68B49, transparent)',
                   animation: 'scan 2s ease-in-out infinite',
                   zIndex: 10
                 }} />
@@ -366,30 +368,30 @@ export default function ResumeUpload({ onQuestionsGenerated, darkMode = true, th
                       color: theme.textSecondary,
                       fontWeight: 500
                     }}>
-                      {dragActive ? '⚡ Drop your resume here' : 'Drag and drop your resume here, or'}
+                      {dragActive ? 'Drop your resume here' : 'Drag and drop your resume here, or'}
                     </p>
                     <label htmlFor="file-upload">
                       <span style={{
                         display: 'inline-block',
                         padding: '16px 40px',
                         borderRadius: 12,
-                        background: 'linear-gradient(135deg, #0A84FF 0%, #BF5AF2 100%)',
+                        background: accentGradient,
                         color: '#fff',
                         fontSize: 17,
                         fontWeight: 700,
                         cursor: 'pointer',
-                        boxShadow: '0 10px 30px rgba(10, 132, 255, 0.4)',
+                        boxShadow: `0 10px 30px ${shadowColor}`,
                         transition: 'all 0.3s ease',
                         textTransform: 'uppercase',
                         letterSpacing: '1px'
                       }}
                       onMouseEnter={(e) => {
                         e.target.style.transform = 'translateY(-3px)'
-                        e.target.style.boxShadow = '0 15px 40px rgba(10, 132, 255, 0.5)'
+                        e.target.style.boxShadow = '0 15px 40px rgba(0, 0, 0, 0.55)'
                       }}
                       onMouseLeave={(e) => {
                         e.target.style.transform = 'translateY(0)'
-                        e.target.style.boxShadow = '0 10px 30px rgba(10, 132, 255, 0.4)'
+                        e.target.style.boxShadow = `0 10px 30px ${shadowColor}`
                       }}>
                         Browse Files
                       </span>
@@ -426,14 +428,14 @@ export default function ResumeUpload({ onQuestionsGenerated, darkMode = true, th
                       padding: '20px 60px',
                       borderRadius: 16,
                       border: 'none',
-                      background: analyzing
-                        ? 'linear-gradient(135deg, rgba(10, 132, 255, 0.5) 0%, rgba(191, 90, 242, 0.5) 100%)'
-                        : 'linear-gradient(135deg, #0A84FF 0%, #BF5AF2 100%)',
+                    background: analyzing
+                      ? 'linear-gradient(135deg, rgba(101, 70, 34, 0.6) 0%, rgba(182, 139, 73, 0.6) 100%)'
+                      : accentGradient,
                       color: '#fff',
                       fontSize: 18,
                       fontWeight: 700,
                       cursor: analyzing ? 'not-allowed' : 'pointer',
-                      boxShadow: analyzing ? 'none' : '0 15px 40px rgba(10, 132, 255, 0.4)',
+                    boxShadow: analyzing ? 'none' : `0 15px 40px ${shadowColor}`,
                       transition: 'all 0.3s ease',
                       textTransform: 'uppercase',
                       letterSpacing: '2px',
@@ -443,13 +445,13 @@ export default function ResumeUpload({ onQuestionsGenerated, darkMode = true, th
                     onMouseEnter={(e) => {
                       if (!analyzing) {
                         e.target.style.transform = 'translateY(-3px)'
-                        e.target.style.boxShadow = '0 20px 50px rgba(10, 132, 255, 0.5)'
+                      e.target.style.boxShadow = '0 20px 50px rgba(0, 0, 0, 0.55)'
                       }
                     }}
                     onMouseLeave={(e) => {
                       if (!analyzing) {
                         e.target.style.transform = 'translateY(0)'
-                        e.target.style.boxShadow = '0 15px 40px rgba(10, 132, 255, 0.4)'
+                      e.target.style.boxShadow = `0 15px 40px ${shadowColor}`
                       }
                     }}
                   >
@@ -466,7 +468,7 @@ export default function ResumeUpload({ onQuestionsGenerated, darkMode = true, th
                         Analyzing...
                       </span>
                     ) : (
-                      '🚀 Analyze Resume'
+                      'Analyze Resume'
                     )}
                   </button>
 
@@ -490,10 +492,10 @@ export default function ResumeUpload({ onQuestionsGenerated, darkMode = true, th
                         <div style={{
                           width: `${scanProgress}%`,
                           height: '100%',
-                          background: 'linear-gradient(90deg, #0A84FF 0%, #BF5AF2 100%)',
+                        background: 'linear-gradient(90deg, #654622 0%, #B68B49 100%)',
                           transition: 'width 0.3s ease',
                           borderRadius: 3,
-                          boxShadow: '0 0 20px rgba(10, 132, 255, 0.6)'
+                          boxShadow: '0 0 20px rgba(182, 139, 73, 0.45)'
                         }} />
                       </div>
                       <p style={{
@@ -578,13 +580,13 @@ export default function ResumeUpload({ onQuestionsGenerated, darkMode = true, th
           <div style={{ animation: 'slideUp 0.8s ease-out' }}>
             {/* Personal Info */}
             <div style={{
-              background: 'linear-gradient(135deg, #0A84FF 0%, #BF5AF2 100%)',
+              background: accentGradient,
               borderRadius: 24,
               padding: 40,
               marginBottom: 30,
               color: '#fff',
               border: `1px solid ${theme.accent}`,
-              boxShadow: '0 20px 60px rgba(10, 132, 255, 0.3)',
+              boxShadow: '0 20px 60px rgba(0, 0, 0, 0.35)',
               position: 'relative',
               overflow: 'hidden'
             }}>
@@ -606,7 +608,7 @@ export default function ResumeUpload({ onQuestionsGenerated, darkMode = true, th
                 fontWeight: 700,
                 letterSpacing: '-1px'
               }}>
-                📋 Resume Summary
+                Resume Summary
               </h2>
               <div style={{
                 display: 'grid',
@@ -650,7 +652,7 @@ export default function ResumeUpload({ onQuestionsGenerated, darkMode = true, th
             {/* Interview Questions */}
             {results.interviewQuestions && results.interviewQuestions.length > 0 && (
               <div style={{
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                background: accentGradient,
                 borderRadius: 24,
                 padding: 40,
                 marginBottom: 30,
@@ -667,7 +669,7 @@ export default function ResumeUpload({ onQuestionsGenerated, darkMode = true, th
                   fontWeight: 700,
                   letterSpacing: '-1px'
                 }}>
-                  🤖 AI-Generated Interview Questions
+                  AI-Generated Interview Questions
                 </h2>
                 <p style={{ marginBottom: 30, opacity: 0.95, fontSize: 17, fontWeight: 500 }}>
                   Based on your skills in <strong>{results.recommendedField}</strong> and <strong>{results.level}</strong> experience level
@@ -708,7 +710,7 @@ export default function ResumeUpload({ onQuestionsGenerated, darkMode = true, th
                   ))}
                 </div>
                 <p style={{ marginTop: 25, fontSize: 14, opacity: 0.9, textAlign: 'center', fontWeight: 500 }}>
-                  💡 These questions are also available in the Virtual Interviewer section
+                  These questions are also available in the Virtual Interviewer section
                 </p>
               </div>
             )}
@@ -730,7 +732,7 @@ export default function ResumeUpload({ onQuestionsGenerated, darkMode = true, th
                 fontWeight: 700,
                 letterSpacing: '-1px'
               }}>
-                💡 Skills Analysis
+                Skills Analysis
               </h2>
               
               <div style={{ marginBottom: 35 }}>
@@ -824,7 +826,7 @@ export default function ResumeUpload({ onQuestionsGenerated, darkMode = true, th
                 border: `2px solid ${theme.warning}`,
                 boxShadow: `0 4px 12px ${theme.warning}30`
               }}>
-                🎯 Recommended Field: <strong style={{ fontSize: 18 }}>{results.recommendedField}</strong>
+                Recommended Field: <strong style={{ fontSize: 18 }}>{results.recommendedField}</strong>
               </div>
             </div>
 
@@ -845,7 +847,7 @@ export default function ResumeUpload({ onQuestionsGenerated, darkMode = true, th
                 fontWeight: 700,
                 letterSpacing: '-1px'
               }}>
-                💡 Resume Tips
+                Resume Tips
               </h2>
               {results.tips && results.tips.map((tip, i) => (
                 <div key={i} style={{
@@ -869,7 +871,7 @@ export default function ResumeUpload({ onQuestionsGenerated, darkMode = true, th
                   e.currentTarget.style.transform = 'translateX(0)'
                 }}>
                   <span style={{ fontSize: 18, marginRight: 12 }}>
-                    {tip.present ? '✓' : '⚠'}
+                    -
                   </span>
                   {tip.text}
                 </div>
@@ -893,7 +895,7 @@ export default function ResumeUpload({ onQuestionsGenerated, darkMode = true, th
                 fontWeight: 700,
                 letterSpacing: '-1px'
               }}>
-                🎓 Recommended Courses
+                Recommended Courses
               </h2>
               {results.courses && results.courses.map((course, i) => (
                 <div key={i} style={{
@@ -906,7 +908,7 @@ export default function ResumeUpload({ onQuestionsGenerated, darkMode = true, th
                   cursor: 'pointer'
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.background = darkMode ? 'rgba(10, 132, 255, 0.1)' : '#E3F2FD'
+                  e.currentTarget.style.background = darkMode ? 'rgba(182, 139, 73, 0.15)' : '#F0E2C7'
                   e.currentTarget.style.borderColor = theme.accent
                   e.currentTarget.style.transform = 'translateX(5px)'
                 }}
@@ -957,12 +959,12 @@ export default function ResumeUpload({ onQuestionsGenerated, darkMode = true, th
                   padding: '18px 50px',
                   borderRadius: 16,
                   border: 'none',
-                  background: 'linear-gradient(135deg, #FF453A 0%, #FF9F0A 100%)',
+                  background: 'linear-gradient(135deg, #654622 0%, #906E2F 100%)',
                   color: '#fff',
                   fontSize: 17,
                   fontWeight: 700,
                   cursor: 'pointer',
-                  boxShadow: '0 10px 30px rgba(255, 69, 58, 0.4)',
+                  boxShadow: '0 10px 30px rgba(32, 34, 33, 0.45)',
                   transition: 'all 0.3s ease',
                   textTransform: 'uppercase',
                   letterSpacing: '1px'

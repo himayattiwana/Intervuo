@@ -7,31 +7,32 @@ export default function Login({ onLogin, darkMode = true, theme = {} }) {
   const [currentFeature, setCurrentFeature] = useState(0)
   const [particles, setParticles] = useState([])
   const [isLoading, setIsLoading] = useState(false)
+  const [showCredentials, setShowCredentials] = useState(false)
 
   const features = [
     {
       icon: '🎤',
       title: 'AI-Powered Interviews',
       description: 'Practice with our intelligent AI interviewer that adapts to your responses',
-      color: '#0A84FF'
+      color: '#B68B49'
     },
     {
       icon: '📊',
       title: 'Real-time Feedback',
       description: 'Get instant analysis and scoring on every answer you provide',
-      color: '#30D158'
+      color: '#906E2F'
     },
     {
       icon: '📄',
       title: 'Smart Resume Analysis',
       description: 'Upload your resume and get personalized questions tailored to your skills',
-      color: '#BF5AF2'
+      color: '#654622'
     },
     {
       icon: '📈',
       title: 'Performance Reports',
       description: 'Track your progress with detailed analytics and improvement suggestions',
-      color: '#FF9F0A'
+      color: '#4D574E'
     }
   ]
 
@@ -72,12 +73,16 @@ export default function Login({ onLogin, darkMode = true, theme = {} }) {
     }, 1500)
   }
 
+  const heroGradient = theme.primaryGradient || 'linear-gradient(135deg, #3A2F23 0%, #5A452E 45%, #B68B49 100%)'
+  const loginBackground = 'linear-gradient(135deg, #0F0D0A 0%, #1C1915 45%, #2B231B 100%)'
+  const accentColor = theme.accent || '#B68B49'
+  const accentGradient = heroGradient
+  const errorColor = theme.error || '#654622'
+
   return (
     <div style={{
       minHeight: '100vh',
-      background: darkMode 
-        ? 'linear-gradient(135deg, #0A0E27 0%, #1a1a2e 50%, #16213e 100%)'
-        : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      background: loginBackground,
       position: 'relative',
       overflow: 'hidden',
       display: 'flex',
@@ -85,6 +90,15 @@ export default function Login({ onLogin, darkMode = true, theme = {} }) {
       justifyContent: 'center',
       padding: '20px'
     }}>
+      <div style={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        background: 'radial-gradient(circle at 30% 20%, rgba(182, 139, 73, 0.25), transparent 55%)',
+        pointerEvents: 'none'
+      }} />
       {/* Animated Background Particles */}
       <div style={{
         position: 'absolute',
@@ -105,13 +119,9 @@ export default function Login({ onLogin, darkMode = true, theme = {} }) {
               width: `${particle.size}px`,
               height: `${particle.size}px`,
               borderRadius: '50%',
-              background: darkMode 
-                ? 'rgba(10, 132, 255, 0.6)'
-                : 'rgba(255, 255, 255, 0.8)',
+              background: 'rgba(182, 139, 73, 0.4)',
               animation: `float ${particle.duration}s infinite ease-in-out ${particle.delay}s`,
-              boxShadow: darkMode
-                ? '0 0 10px rgba(10, 132, 255, 0.5)'
-                : '0 0 10px rgba(255, 255, 255, 0.5)'
+              boxShadow: '0 0 10px rgba(0, 0, 0, 0.5)'
             }}
           />
         ))}
@@ -124,9 +134,7 @@ export default function Login({ onLogin, darkMode = true, theme = {} }) {
         left: 0,
         right: 0,
         bottom: 0,
-        backgroundImage: darkMode
-          ? 'linear-gradient(rgba(10, 132, 255, 0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(10, 132, 255, 0.05) 1px, transparent 1px)'
-          : 'linear-gradient(rgba(255, 255, 255, 0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.1) 1px, transparent 1px)',
+        backgroundImage: 'linear-gradient(rgba(182, 139, 73, 0.07) 1px, transparent 1px), linear-gradient(90deg, rgba(182, 139, 73, 0.07) 1px, transparent 1px)',
         backgroundSize: '50px 50px',
         animation: 'gridMove 20s linear infinite',
         pointerEvents: 'none'
@@ -155,10 +163,10 @@ export default function Login({ onLogin, darkMode = true, theme = {} }) {
 
         @keyframes glow {
           0%, 100% {
-            box-shadow: 0 0 20px rgba(10, 132, 255, 0.5);
+            box-shadow: 0 0 20px rgba(182, 139, 73, 0.45);
           }
           50% {
-            box-shadow: 0 0 40px rgba(10, 132, 255, 0.8);
+            box-shadow: 0 0 40px rgba(182, 139, 73, 0.7);
           }
         }
 
@@ -226,21 +234,22 @@ export default function Login({ onLogin, darkMode = true, theme = {} }) {
             animation: 'fadeIn 1s ease-out'
           }}>
             <h1 style={{
-              fontSize: 56,
-              fontWeight: 800,
+              fontSize: 58,
+              fontWeight: 900,
               margin: 0,
-              background: 'linear-gradient(135deg, #0A84FF 0%, #BF5AF2 50%, #FF9F0A 100%)',
+              background: 'linear-gradient(120deg, #F8E4C1 0%, #D8B679 30%, #B68B49 60%, #F5C87A 100%)',
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
               backgroundClip: 'text',
               letterSpacing: '-2px',
-              marginBottom: 15
+              marginBottom: 15,
+              textShadow: '0 0 40px rgba(246, 220, 176, 0.45)'
             }}>
               INTERVUO
             </h1>
             <p style={{
               fontSize: 20,
-              color: darkMode ? 'rgba(255, 255, 255, 0.7)' : 'rgba(255, 255, 255, 0.9)',
+              color: 'rgba(245, 237, 224, 0.85)',
               margin: 0,
               fontWeight: 500,
               letterSpacing: '2px'
@@ -264,10 +273,10 @@ export default function Login({ onLogin, darkMode = true, theme = {} }) {
                   left: 0,
                   right: 0,
                   background: darkMode
-                    ? 'rgba(255, 255, 255, 0.03)'
-                    : 'rgba(255, 255, 255, 0.2)',
-                  backdropFilter: 'blur(20px)',
-                  border: `1px solid ${darkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.3)'}`,
+                    ? 'rgba(10, 9, 7, 0.75)'
+                    : 'rgba(10, 9, 7, 0.75)',
+                  backdropFilter: 'blur(10px)',
+                  border: '1px solid rgba(255, 255, 255, 0.05)',
                   borderRadius: 24,
                   padding: 40,
                   opacity: currentFeature === index ? 1 : 0,
@@ -275,8 +284,9 @@ export default function Login({ onLogin, darkMode = true, theme = {} }) {
                   transition: 'all 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
                   pointerEvents: currentFeature === index ? 'auto' : 'none',
                   boxShadow: currentFeature === index
-                    ? `0 20px 60px ${feature.color}40`
-                    : 'none'
+                    ? `0 20px 60px rgba(0, 0, 0, 0.6)`
+                    : 'none',
+                  color: '#F5EDE0'
                 }}>
                 <div style={{
                   fontSize: 72,
@@ -288,7 +298,7 @@ export default function Login({ onLogin, darkMode = true, theme = {} }) {
                 <h2 style={{
                   fontSize: 32,
                   fontWeight: 700,
-                  color: darkMode ? '#FFFFFF' : '#FFFFFF',
+                  color: '#F5EDE0',
                   marginBottom: 15,
                   letterSpacing: '-1px'
                 }}>
@@ -296,7 +306,7 @@ export default function Login({ onLogin, darkMode = true, theme = {} }) {
                 </h2>
                 <p style={{
                   fontSize: 18,
-                  color: darkMode ? 'rgba(255, 255, 255, 0.7)' : 'rgba(255, 255, 255, 0.9)',
+                  color: 'rgba(245, 237, 224, 0.8)',
                   lineHeight: 1.6,
                   margin: 0
                 }}>
@@ -322,10 +332,8 @@ export default function Login({ onLogin, darkMode = true, theme = {} }) {
                   borderRadius: 6,
                   border: 'none',
                   background: currentFeature === index
-                    ? 'linear-gradient(90deg, #0A84FF 0%, #BF5AF2 100%)'
-                    : darkMode 
-                      ? 'rgba(255, 255, 255, 0.2)'
-                      : 'rgba(255, 255, 255, 0.4)',
+                    ? accentGradient
+                    : 'rgba(255, 255, 255, 0.15)',
                   cursor: 'pointer',
                   transition: 'all 0.3s ease',
                   padding: 0
@@ -361,7 +369,7 @@ export default function Login({ onLogin, darkMode = true, theme = {} }) {
               left: 0,
               right: 0,
               height: 2,
-              background: 'linear-gradient(90deg, transparent, #0A84FF, transparent)',
+              background: `linear-gradient(90deg, transparent, ${accentColor}, transparent)`,
               animation: 'scan 3s ease-in-out infinite'
             }} />
 
@@ -415,8 +423,8 @@ export default function Login({ onLogin, darkMode = true, theme = {} }) {
                       boxSizing: 'border-box'
                     }}
                     onFocus={(e) => {
-                      e.target.style.border = '2px solid #0A84FF'
-                      e.target.style.boxShadow = '0 0 20px rgba(10, 132, 255, 0.3)'
+                      e.target.style.border = `2px solid ${accentColor}`
+                      e.target.style.boxShadow = '0 0 20px rgba(182, 139, 73, 0.35)'
                     }}
                     onBlur={(e) => {
                       e.target.style.border = `2px solid ${darkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.3)'}`
@@ -467,8 +475,8 @@ export default function Login({ onLogin, darkMode = true, theme = {} }) {
                       boxSizing: 'border-box'
                     }}
                     onFocus={(e) => {
-                      e.target.style.border = '2px solid #0A84FF'
-                      e.target.style.boxShadow = '0 0 20px rgba(10, 132, 255, 0.3)'
+                      e.target.style.border = `2px solid ${accentColor}`
+                      e.target.style.boxShadow = '0 0 20px rgba(182, 139, 73, 0.35)'
                     }}
                     onBlur={(e) => {
                       e.target.style.border = `2px solid ${darkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.3)'}`
@@ -492,14 +500,14 @@ export default function Login({ onLogin, darkMode = true, theme = {} }) {
                 <div style={{
                   padding: 12,
                   borderRadius: 12,
-                  background: 'rgba(255, 69, 58, 0.15)',
-                  border: '1px solid rgba(255, 69, 58, 0.3)',
-                  color: '#FF453A',
+                  background: 'rgba(101, 70, 34, 0.2)',
+                  border: '1px solid rgba(101, 70, 34, 0.4)',
+                  color: errorColor,
                   fontSize: 14,
                   marginBottom: 24,
                   animation: 'fadeIn 0.3s ease-out'
                 }}>
-                  ⚠️ {error}
+                  {error}
                 </div>
               )}
 
@@ -513,14 +521,14 @@ export default function Login({ onLogin, darkMode = true, theme = {} }) {
                   borderRadius: 12,
                   border: 'none',
                   background: isLoading
-                    ? 'rgba(10, 132, 255, 0.5)'
-                    : 'linear-gradient(135deg, #0A84FF 0%, #BF5AF2 100%)',
+                    ? 'rgba(101, 70, 34, 0.6)'
+                    : heroGradient,
                   color: '#FFFFFF',
                   fontSize: 16,
                   fontWeight: 700,
                   cursor: isLoading ? 'not-allowed' : 'pointer',
                   transition: 'all 0.3s ease',
-                  boxShadow: isLoading ? 'none' : '0 10px 30px rgba(10, 132, 255, 0.4)',
+                  boxShadow: isLoading ? 'none' : '0 10px 30px rgba(0, 0, 0, 0.35)',
                   textTransform: 'uppercase',
                   letterSpacing: '1px',
                   position: 'relative',
@@ -529,13 +537,13 @@ export default function Login({ onLogin, darkMode = true, theme = {} }) {
                 onMouseEnter={(e) => {
                   if (!isLoading) {
                     e.target.style.transform = 'translateY(-2px)'
-                    e.target.style.boxShadow = '0 15px 40px rgba(10, 132, 255, 0.5)'
+                    e.target.style.boxShadow = '0 15px 40px rgba(0, 0, 0, 0.45)'
                   }
                 }}
                 onMouseLeave={(e) => {
                   if (!isLoading) {
                     e.target.style.transform = 'translateY(0)'
-                    e.target.style.boxShadow = '0 10px 30px rgba(10, 132, 255, 0.4)'
+                    e.target.style.boxShadow = '0 10px 30px rgba(0, 0, 0, 0.35)'
                   }
                 }}
               >
@@ -563,35 +571,39 @@ export default function Login({ onLogin, darkMode = true, theme = {} }) {
               `}</style>
             </form>
 
-            {/* Demo Credentials */}
-            <div style={{
-              marginTop: 30,
-              padding: 16,
-              borderRadius: 12,
-              background: darkMode 
-                ? 'rgba(191, 90, 242, 0.1)'
-                : 'rgba(191, 90, 242, 0.2)',
-              border: '1px solid rgba(191, 90, 242, 0.3)',
-              textAlign: 'center'
-            }}>
-              <p style={{
-                margin: 0,
-                fontSize: 13,
-                color: darkMode ? 'rgba(255, 255, 255, 0.6)' : 'rgba(255, 255, 255, 0.8)',
-                marginBottom: 8
-              }}>
-                Demo Credentials
-              </p>
-              <p style={{
-                margin: 0,
-                fontSize: 14,
-                fontWeight: 600,
-                color: '#BF5AF2',
-                fontFamily: 'monospace'
-              }}>
-                Username: admin | Password: admin
-              </p>
+            <div style={{ marginTop: 18, textAlign: 'right' }}>
+              <button
+                type="button"
+                onClick={() => setShowCredentials(prev => !prev)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'rgba(245, 237, 224, 0.7)',
+                  fontSize: 12,
+                  textDecoration: 'underline',
+                  cursor: 'pointer',
+                  padding: 0,
+                  opacity: 0.8
+                }}
+              >
+                Forgot password?
+              </button>
             </div>
+
+            {showCredentials && (
+              <div style={{
+                marginTop: 12,
+                padding: 14,
+                borderRadius: 12,
+                background: 'rgba(182, 139, 73, 0.12)',
+                border: '1px solid rgba(182, 139, 73, 0.3)',
+                color: 'rgba(255,255,255,0.8)',
+                fontSize: 13,
+                textAlign: 'center'
+              }}>
+                Username: admin · Password: admin
+              </div>
+            )}
           </div>
         </div>
       </div>

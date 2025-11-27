@@ -120,7 +120,7 @@ export default function FeedbackPanel({
                 color: theme.text,
                 fontWeight: 700
               }}>
-                📊 Answer Feedback
+                Answer Feedback
               </h2>
               <span style={{ 
                 fontSize: 14, 
@@ -158,9 +158,9 @@ export default function FeedbackPanel({
                 opacity: 0.95,
                 fontWeight: 600
               }}>
-                {feedback.score >= 8 ? 'Excellent Performance! 🎉' : 
-                 feedback.score >= 6 ? 'Good Job! 👍' : 
-                 feedback.score >= 4 ? 'Fair Attempt 💪' : 'Keep Practicing! 📚'}
+                {feedback.score >= 8 ? 'Excellent Performance!' : 
+                 feedback.score >= 6 ? 'Good Job!' : 
+                 feedback.score >= 4 ? 'Fair Attempt' : 'Keep Practicing!'}
               </div>
             </div>
 
@@ -237,21 +237,14 @@ export default function FeedbackPanel({
                 boxShadow: `0 4px 12px ${theme.success}30`
               }}>
                 <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 10,
+                  fontSize: 16,
+                  color: darkMode ? theme.success : '#2E7D32',
+                  fontWeight: 700,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.5px',
                   marginBottom: 16
                 }}>
-                  <span style={{ fontSize: 28 }}>✅</span>
-                  <div style={{
-                    fontSize: 16,
-                    color: darkMode ? theme.success : '#2E7D32',
-                    fontWeight: 700,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.5px'
-                  }}>
-                    What Went Well
-                  </div>
+                  What Went Well
                 </div>
                 <p style={{ 
                   margin: 0, 
@@ -273,21 +266,14 @@ export default function FeedbackPanel({
                 boxShadow: `0 4px 12px ${theme.warning}30`
               }}>
                 <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 10,
+                  fontSize: 16,
+                  color: darkMode ? theme.warning : '#E65100',
+                  fontWeight: 700,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.5px',
                   marginBottom: 16
                 }}>
-                  <span style={{ fontSize: 28 }}>💡</span>
-                  <div style={{
-                    fontSize: 16,
-                    color: darkMode ? theme.warning : '#E65100',
-                    fontWeight: 700,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.5px'
-                  }}>
-                    Room for Improvement
-                  </div>
+                  Room for Improvement
                 </div>
                 <p style={{ 
                   margin: 0, 
@@ -318,7 +304,7 @@ export default function FeedbackPanel({
                   textTransform: 'uppercase',
                   letterSpacing: '0.5px'
                 }}>
-                  📊 Detailed Analysis
+                  Detailed Analysis
                 </div>
                 
                 <div style={{
@@ -335,7 +321,7 @@ export default function FeedbackPanel({
                       borderLeft: `4px solid ${theme.purple}`
                     }}>
                       <div style={{ fontSize: 14, fontWeight: 700, color: theme.text, marginBottom: 12 }}>
-                        💬 Sentiment Analysis
+                        Sentiment Analysis
                       </div>
                       <div style={{ fontSize: 13, color: theme.textSecondary, lineHeight: 1.8 }}>
                         <div><strong>State:</strong> <span style={{ 
@@ -365,7 +351,7 @@ export default function FeedbackPanel({
                       borderLeft: `4px solid ${theme.success}`
                     }}>
                       <div style={{ fontSize: 14, fontWeight: 700, color: theme.text, marginBottom: 12 }}>
-                        😊 Facial Expression
+                        Facial Expression
                       </div>
                       <div style={{ fontSize: 13, color: theme.textSecondary, lineHeight: 1.8 }}>
                         <div><strong>State:</strong> <span style={{ 

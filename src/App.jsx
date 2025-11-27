@@ -18,23 +18,24 @@ function App() {
   const [feedback, setFeedback] = useState(null)
   const [analyzingAnswer, setAnalyzingAnswer] = useState(false)
   const [showReport, setShowReport] = useState(false)
-  const [darkMode, setDarkMode] = useState(true)
+  const darkMode = true
 
-  // Theme colors
+  // Theme colors inspired by the new palette
   const theme = {
-    bg: darkMode ? '#000000' : '#FFFFFF',
-    bgSecondary: darkMode ? '#1C1C1E' : '#F2F2F7',
-    bgCard: darkMode ? '#2C2C2E' : '#FFFFFF',
-    text: darkMode ? '#FFFFFF' : '#000000',
-    textSecondary: darkMode ? '#EBEBF5' : '#3C3C43',
-    textTertiary: darkMode ? '#EBEBF599' : '#3C3C4399',
-    accent: darkMode ? '#0A84FF' : '#007AFF',
-    border: darkMode ? '#38383A' : '#E5E5EA',
-    success: darkMode ? '#30D158' : '#34C759',
-    warning: darkMode ? '#FF9F0A' : '#FF9500',
-    error: darkMode ? '#FF453A' : '#FF3B30',
-    purple: darkMode ? '#BF5AF2' : '#AF52DE',
-    shadow: darkMode ? 'rgba(0,0,0,0.3)' : 'rgba(0,0,0,0.1)',
+    bg: '#151412',
+    bgSecondary: '#1F1E1B',
+    bgCard: '#23211D',
+    text: '#F5EDE0',
+    textSecondary: '#D2C3A8',
+    textTertiary: '#A08F75',
+    accent: '#B68B49',
+    border: '#3A3B33',
+    success: '#B68B49',
+    warning: '#906E2F',
+    error: '#654622',
+    purple: '#4D574E',
+    shadow: 'rgba(0,0,0,0.5)',
+    primaryGradient: 'linear-gradient(135deg, #3A2F23 0%, #5A452E 45%, #B68B49 100%)'
   }
 
   useEffect(() => {
@@ -300,13 +301,14 @@ function App() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 30 }}>
               <h1 style={{
                 margin: 0,
-                fontSize: 28,
-                fontWeight: 800,
-                background: 'linear-gradient(135deg, #0A84FF 0%, #BF5AF2 100%)',
+                fontSize: 32,
+                fontWeight: 900,
+                background: 'linear-gradient(120deg, #F8E4C1 0%, #D8B679 35%, #B68B49 70%, #F5C87A 100%)',
                 WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent',
                 backgroundClip: 'text',
-                letterSpacing: '-1px'
+                letterSpacing: '-1px',
+                textShadow: '0 0 25px rgba(246, 220, 176, 0.35)'
               }}>
                 INTERVUO
               </h1>
@@ -363,22 +365,6 @@ function App() {
                   Session Active
                 </div>
               )}
-
-              <button
-                onClick={() => setDarkMode(!darkMode)}
-                style={{
-                  padding: '10px 16px',
-                  borderRadius: 12,
-                  border: `1px solid ${theme.border}`,
-                  background: theme.bgSecondary,
-                  color: theme.text,
-                  fontSize: 18,
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease'
-                }}
-              >
-                {darkMode ? '☀️' : '🌙'}
-              </button>
 
               <button
                 onClick={handleLogout}

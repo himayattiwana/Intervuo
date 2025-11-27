@@ -302,7 +302,7 @@ export default function Interviewer({
                   boxShadow: (saving || disabled) ? 'none' : `0 4px 12px ${theme.shadow}`
                 }}
               >
-                🎤 Start Recording
+                Start Recording
               </button>
             ) : (
               <button
@@ -332,7 +332,7 @@ export default function Interviewer({
                   boxShadow: disabled ? 'none' : `0 4px 12px ${theme.shadow}`
                 }}
               >
-                ⏹️ Stop Recording
+                Stop Recording
               </button>
             )}
 
@@ -341,7 +341,6 @@ export default function Interviewer({
               <div style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: 8,
                 padding: '10px 16px',
                 background: darkMode ? theme.error + '20' : '#FFEBEE',
                 borderRadius: 12,
@@ -352,7 +351,6 @@ export default function Interviewer({
                 minWidth: 100,
                 justifyContent: 'center'
               }}>
-                <span style={{ fontSize: 18 }}>⏱️</span>
                 <span>
                   {Math.floor(elapsedTime / 60).toString().padStart(2, '0')}:
                   {(elapsedTime % 60).toString().padStart(2, '0')}
@@ -382,7 +380,7 @@ export default function Interviewer({
               }}
               title={disabled ? "Please wait for feedback" : "Save answer and move to next question"}
             >
-              {saving ? '💾 Saving...' : isAnswered ? '✓ Save & Next' : '💾 Save & Next'}
+              {saving ? 'Saving...' : 'Save & Next'}
             </button>
 
             <button
@@ -401,8 +399,8 @@ export default function Interviewer({
                 transition: 'all 0.2s ease'
               }}
               title="Clear text and start over"
-            >
-              🗑️ Clear
+              >
+                Clear
             </button>
 
             {recording && listening && (
@@ -415,7 +413,7 @@ export default function Interviewer({
                 borderRadius: 12,
                 transition: 'all 0.2s ease'
               }}>
-                🎤 Listening...
+                Listening...
               </span>
             )}
 
@@ -429,7 +427,7 @@ export default function Interviewer({
                 borderRadius: 12,
                 transition: 'all 0.2s ease'
               }}>
-                💾 Saving your answer...
+                Saving your answer...
               </span>
             )}
           </div>
@@ -445,7 +443,7 @@ export default function Interviewer({
             border: `1px solid ${theme.border}`,
             transition: 'all 0.3s ease'
           }}>
-            💡 <strong style={{ color: theme.textSecondary }}>Tip:</strong> Record or type your answer, then click <strong style={{ color: theme.text }}>"Save & Next"</strong> to move to the next question. Your answer will be saved automatically!
+            <strong style={{ color: theme.textSecondary }}>Tip:</strong> Record or type your answer, then click <strong style={{ color: theme.text }}>"Save & Next"</strong> to move to the next question. Your answer will be saved automatically!
           </div>
         </div>
       </div>
