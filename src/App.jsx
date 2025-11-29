@@ -260,6 +260,9 @@ function App() {
     return <Login onLogin={handleLogin} darkMode={darkMode} theme={theme} />
   }
 
+  const practiceQuestion = "Practice Mode: say anything to test the microphone, camera, and analysis.";
+  const handlePracticeSubmit = async () => true;
+
   return (
     <div style={{ 
       minHeight: '100vh', 
@@ -347,6 +350,22 @@ function App() {
                   }}
                 >
                   Virtual Interviewer
+                </button>
+                <button
+                  onClick={() => setCurrentPage('practice')}
+                  style={{
+                    padding: '10px 24px',
+                    borderRadius: 12,
+                    border: 'none',
+                    background: currentPage === 'practice' ? theme.accent : 'transparent',
+                    color: currentPage === 'practice' ? '#fff' : theme.textSecondary,
+                    fontSize: 14,
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease'
+                  }}
+                >
+                  Practice Mode
                 </button>
               </div>
             </div>
@@ -637,6 +656,41 @@ function App() {
                   </button>
                 </div>
               )}
+            </div>
+          ) : currentPage === 'practice' ? (
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              padding: '40px 20px',
+              minHeight: 'calc(100vh - 80px)'
+            }}>
+              <div style={{
+                width: '100%',
+                maxWidth: 900,
+                marginBottom: 30,
+                background: theme.bgCard,
+                borderRadius: 16,
+                padding: 24,
+                border: `1px solid ${theme.border}`,
+                boxShadow: `0 4px 16px ${theme.shadow}`
+              }}>
+                <h2 style={{ margin: '0 0 12px 0' }}>Practice Mode</h2>
+                <p style={{ margin: '0 0 16px 0', color: theme.textSecondary, lineHeight: 1.6 }}>
+                  Use this space to test your webcam, microphone, live transcription, and emotion analysis without generating interview questions.
+                  Saving is disabled here. Head back to the Resume Analyzer to start a real interview.
+                </p>
+              </div>
+              <Interviewer
+                question={practiceQuestion}
+                onSubmit={handlePracticeSubmit}
+                saving={false}
+                isAnswered={false}
+                disabled={false}
+                darkMode={darkMode}
+                theme={theme}
+                practiceMode
+              />
             </div>
           ) : (
             <ResumeUpload 

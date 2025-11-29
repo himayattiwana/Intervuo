@@ -424,16 +424,19 @@ def _get_block_reason(response):
     return getattr(feedback, "block_reason", None) or getattr(feedback, "safety_ratings", None)
 
 
-def generate_interview_questions(skills, field, level, resume_text, name, email):
+def generate_interview_questions(skills, field, level, resume_text, name, email, question_count=None):
     """Generate interview questions using Google Gemini AI"""
     try:
+        if question_count is None:
+            question_count = NUM_QUESTIONS
+        question_count = max(1, min(12, int(question_count)))
         difficulty = DIFFICULTY_MAPPING.get(level, 'intermediate-level')
         skills_str = ", ".join(skills[:15]) if skills else "general technical skills"
         
         sections = extract_resume_sections(resume_text)
         
         # Enhanced prompt for more natural, unique questions
-        prompt = f"""You are conducting a real interview with {name}. Generate {NUM_QUESTIONS} NATURAL, CONVERSATIONAL questions that feel spontaneous and human.
+        prompt = f"""You are conducting a real interview with {name}. Generate {question_count} NATURAL, CONVERSATIONAL questions that feel spontaneous and human.
 
 CANDIDATE PROFILE:
 Name: {name}
@@ -475,7 +478,7 @@ QUESTION MIX:
 
 Make each question feel different - vary length, tone, and structure. Be genuinely curious.
 
-Generate exactly {NUM_QUESTIONS} questions, numbered 1-{NUM_QUESTIONS}, nothing else:"""
+Generate exactly {question_count} questions, numbered 1-{question_count}, nothing else:"""
 
         raw_segments = []
         block_reason = None
@@ -526,7 +529,7 @@ Generate exactly {NUM_QUESTIONS} questions, numbered 1-{NUM_QUESTIONS}, nothing 
         print(f"✅ Parsed {len(questions)} questions")
         
         # If we got too few or too many questions, trim/pad
-        if len(questions) < NUM_QUESTIONS:
+        if len(questions) < question_count:
             # Add smart fallback questions that still feel natural
             fallback_natural = [
                 f"What's the most interesting problem you've solved with {skills[0] if skills else 'your tech stack'}?",
@@ -539,9 +542,9 @@ Generate exactly {NUM_QUESTIONS} questions, numbered 1-{NUM_QUESTIONS}, nothing 
                 f"How do you stay current with {skills[2] if len(skills) > 2 else 'new technologies'}?"
             ]
             random.shuffle(fallback_natural)
-            questions.extend(fallback_natural[:NUM_QUESTIONS - len(questions)])
+            questions.extend(fallback_natural[:question_count - len(questions)])
         
-        return questions[:NUM_QUESTIONS]
+        return questions[:question_count]
     
     except Exception as e:
         print(f"❌ Error generating questions: {e}")
@@ -559,7 +562,7 @@ Generate exactly {NUM_QUESTIONS} questions, numbered 1-{NUM_QUESTIONS}, nothing 
             f"If you could improve one thing about your current {field.lower()} skills, what would it be?",
             "Where do you see yourself going in the next few years?"
         ]
-        return fallback[:NUM_QUESTIONS]
+        return fallback[:question_count]
 
 @app.route('/api/analyze-resume', methods=['POST'])
 def analyze_resume():
@@ -607,12 +610,29 @@ def analyze_resume():
         
         recommended_skills, reco_field, courses = analyze_skills(skills, resume_text)
         resume_score, tips = calculate_resume_score(resume_text)
+
+        requested_questions = request.form.get('num_questions') or request.args.get('num_questions')
+        question_count = NUM_QUESTIONS
+        if requested_questions is not None:
+            try:
+                question_count = int(requested_questions)
+            except (TypeError, ValueError):
+                question_count = NUM_QUESTIONS
+        question_count = max(1, min(12, question_count))
         
-        print(f"🤖 Generating {NUM_QUESTIONS} personalized interview questions...")
+        print(f"🤖 Generating {question_count} personalized interview questions...")
         print(f"📊 Context: {len(skills)} skills detected, {reco_field} field, {cand_level} level")
         print(f"📄 Resume length: {len(resume_text)} characters")
         
-        questions = generate_interview_questions(skills, reco_field, cand_level, resume_text, name, email)
+        questions = generate_interview_questions(
+            skills,
+            reco_field,
+            cand_level,
+            resume_text,
+            name,
+            email,
+            question_count=question_count
+        )
         print(f"✅ Generated {len(questions)} personalized questions")
         
         if questions:
@@ -632,7 +652,8 @@ def analyze_resume():
             "resumeScore": resume_score,
             "tips": tips,
             "courses": courses,
-            "interviewQuestions": questions
+            "interviewQuestions": questions,
+            "questionCount": question_count
         }
         
         return jsonify(response), 200

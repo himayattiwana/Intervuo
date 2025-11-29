@@ -9,6 +9,9 @@ from typing import Dict, List, Tuple, Optional
 import base64
 import cv2
 from io import BytesIO
+from pathlib import Path
+import urllib.request
+import shutil
 from PIL import Image
 
 # Try to import sentiment analysis libraries
@@ -26,9 +29,39 @@ except ImportError:
     VADER_AVAILABLE = False
     print("⚠️ VADER not available. Install with: pip install vaderSentiment")
 
+# Try to import onnxruntime for FER+ model inference
+try:
+    import onnxruntime as ort
+    ONNXRUNTIME_AVAILABLE = True
+except ImportError:
+    ONNXRUNTIME_AVAILABLE = False
+    print("⚠️ onnxruntime not available. Install with: pip install onnxruntime")
+
 # OpenCV is always available (we use opencv-python-headless)
 OPENCV_AVAILABLE = True
 print("✅ OpenCV available for emotion detection")
+
+FER_MODEL_URLS = [
+    "https://raw.githubusercontent.com/onnx/models/main/validated/vision/body_analysis/emotion_ferplus/model/emotion-ferplus-8.onnx",
+    # Fallback mirrors (in case the main raw URL is rate-limited)
+    "https://github.com/onnx/models/raw/main/validated/vision/body_analysis/emotion_ferplus/model/emotion-ferplus-8.onnx?download=1",
+]
+FER_MODEL_FILENAME = "emotion-ferplus-8.onnx"
+FERPLUS_LABELS = [
+    'neutral', 'happiness', 'surprise', 'sadness',
+    'anger', 'disgust', 'fear', 'contempt'
+]
+FERPLUS_TO_APP_LABEL = {
+    'neutral': 'neutral',
+    'happiness': 'happy',
+    'surprise': 'surprise',
+    'sadness': 'sad',
+    'anger': 'angry',
+    'disgust': 'disgust',
+    'fear': 'fear',
+    'contempt': 'disgust'  # closest available category
+}
+MODELS_DIR = Path(__file__).resolve().parent / "models"
 
 
 class SentimentAnalyzer:
@@ -205,7 +238,9 @@ class FacialExpressionAnalyzer:
     
     def __init__(self):
         self.face_cascade = None
-        self.emotion_model = None
+        self.emotion_model_session = None
+        self.emotion_model_input = None
+        self.emotion_model_path = MODELS_DIR / FER_MODEL_FILENAME
         self.emotion_labels = ['angry', 'disgust', 'fear', 'happy', 'neutral', 'sad', 'surprise']
         
         # Initialize OpenCV face detector
@@ -226,9 +261,8 @@ class FacialExpressionAnalyzer:
             except Exception as e2:
                 print(f"⚠️ DNN face detector also failed: {e2}")
         
-        # Initialize simple emotion classifier (rule-based for now)
-        # In production, you could load a pre-trained model here
-        print("✅ Simple emotion classifier initialized (rule-based)")
+        # Initialize FER+ ONNX model if available, fallback to heuristics
+        self._ensure_emotion_model()
     
     def _init_dnn_face_detector(self):
         """Initialize OpenCV DNN face detector (more accurate)"""
@@ -238,6 +272,59 @@ class FacialExpressionAnalyzer:
             print("🔄 Using Haar Cascade as face detector")
         except Exception as e:
             print(f"⚠️ DNN face detector failed: {e}")
+    
+    def _ensure_emotion_model(self):
+        """Load the FER+ ONNX model if onnxruntime is available"""
+        if not ONNXRUNTIME_AVAILABLE:
+            print("⚠️ onnxruntime not installed; falling back to rule-based emotions")
+            return
+        
+        if self.emotion_model_session is not None:
+            return
+        
+        try:
+            MODELS_DIR.mkdir(parents=True, exist_ok=True)
+            if self.emotion_model_path.exists() and self.emotion_model_path.stat().st_size < 1024:
+                # Remove corrupt/partial downloads before re-fetching
+                print("⚠️ Detected incomplete FER+ model download. Removing and retrying...")
+                self.emotion_model_path.unlink()
+            if not self.emotion_model_path.exists():
+                self._download_emotion_model()
+            self.emotion_model_session = ort.InferenceSession(
+                str(self.emotion_model_path),
+                providers=['CPUExecutionProvider']
+            )
+            self.emotion_model_input = self.emotion_model_session.get_inputs()[0].name
+            print("✅ FER+ ONNX emotion model initialized")
+        except Exception as e:
+            self.emotion_model_session = None
+            self.emotion_model_input = None
+            print(f"⚠️ Could not initialize FER+ emotion model: {e}")
+            print("   Falling back to OpenCV heuristic analyzer")
+    
+    def _download_emotion_model(self):
+        """Download the FER+ ONNX model to the models directory"""
+        tmp_path = self.emotion_model_path.with_suffix(".tmp")
+        headers = {'User-Agent': 'Mozilla/5.0'}
+        last_error = None
+        for url in FER_MODEL_URLS:
+            print(f"⬇️ Downloading FER+ emotion model from {url} ...")
+            try:
+                request = urllib.request.Request(url, headers=headers)
+                with urllib.request.urlopen(request) as response, open(tmp_path, "wb") as out_file:
+                    shutil.copyfileobj(response, out_file)
+                tmp_path.replace(self.emotion_model_path)
+                print(f"✅ FER+ model downloaded successfully to {self.emotion_model_path}")
+                return
+            except Exception as e:
+                last_error = e
+                print(f"⚠️ Download attempt failed: {e}")
+                try:
+                    if tmp_path.exists():
+                        tmp_path.unlink()
+                except OSError:
+                    pass
+        raise RuntimeError(f"Failed to download FER+ model: {last_error}") from last_error
     
     def decode_image(self, image_data: str) -> Optional[np.ndarray]:
         """Decode base64 image data to numpy array"""
@@ -393,6 +480,50 @@ class FacialExpressionAnalyzer:
         
         return emotions
     
+    def _analyze_emotion_model(self, face_roi: np.ndarray) -> Optional[Dict[str, float]]:
+        """
+        Run the FER+ ONNX model on the detected face ROI.
+        Returns normalized emotion probabilities or None if model unavailable.
+        """
+        if self.emotion_model_session is None or self.emotion_model_input is None:
+            return None
+        
+        try:
+            gray = cv2.cvtColor(face_roi, cv2.COLOR_BGR2GRAY)
+            resized = cv2.resize(gray, (64, 64))
+            normalized = resized.astype(np.float32) / 255.0
+            normalized = (normalized - 0.5) / 0.5  # scale to roughly -1..1
+            tensor = normalized.reshape(1, 1, 64, 64)
+            
+            outputs = self.emotion_model_session.run(
+                None,
+                {self.emotion_model_input: tensor}
+            )[0][0]
+            
+            probabilities = self._softmax(outputs)
+            mapped = {label: 0.0 for label in self.emotion_labels}
+            
+            for fer_label, prob in zip(FERPLUS_LABELS, probabilities):
+                target = FERPLUS_TO_APP_LABEL.get(fer_label, 'neutral')
+                mapped[target] = mapped.get(target, 0.0) + float(prob)
+            
+            total = sum(mapped.values())
+            if total > 0:
+                mapped = {k: v / total for k, v in mapped.items()}
+            return mapped
+        except Exception as e:
+            print(f"⚠️ FER+ model inference failed: {e}")
+            return None
+    
+    @staticmethod
+    def _softmax(logits: np.ndarray) -> np.ndarray:
+        """Stable softmax computation."""
+        logits = np.array(logits, dtype=np.float32)
+        logits -= np.max(logits)
+        exps = np.exp(logits)
+        total = np.sum(exps)
+        return exps / total if total > 0 else np.ones_like(exps) / len(exps)
+    
     def analyze_facial_expressions(self, image_data: str) -> Dict:
         """
         Analyze facial expressions from base64 encoded image
@@ -418,18 +549,23 @@ class FacialExpressionAnalyzer:
         x, y, w, h = face_rect
         face_roi = img_array[y:y+h, x:x+w]
         
-        # Analyze emotion
-        emotions = self._analyze_emotion_simple(face_roi)
+        # Analyze emotion using FER+ model when available, fallback to heuristics
+        detection_method = 'OpenCV (heuristic)'
+        emotions = self._analyze_emotion_model(face_roi)
+        if emotions:
+            detection_method = 'FER+ (ONNX)'
+        else:
+            emotions = self._analyze_emotion_simple(face_roi)
         
         # Find dominant emotion
         dominant_emotion = max(emotions, key=emotions.get)
         max_confidence = emotions[dominant_emotion]
         
-        print(f"📊 OpenCV detected: {dominant_emotion} ({max_confidence:.2%})")
+        print(f"📊 {detection_method} detected: {dominant_emotion} ({max_confidence:.2%})")
         print(f"📊 All emotions: {emotions}")
         
         # Map emotions to interview states
-        interview_state = self._map_emotion_to_state(dominant_emotion, emotions)
+        interview_state, metrics = self._map_emotion_to_state(dominant_emotion, emotions)
         
         # Calculate confidence level
         if max_confidence >= 0.6:
@@ -446,29 +582,74 @@ class FacialExpressionAnalyzer:
             'interview_state': interview_state,
             'max_confidence': round(max_confidence, 2),
             'emotion_scores': emotions,
-            'detection_method': 'OpenCV'
+            'emotion_metrics': metrics,
+            'detection_method': detection_method
         }
     
-    def _map_emotion_to_state(self, dominant_emotion: str, emotions: Dict[str, float]) -> str:
-        """Map detected emotions to interview states"""
-        # Negative emotions → nervous
-        if dominant_emotion in ['sad', 'fear', 'angry', 'disgust']:
-            return 'nervous'
-        # Positive emotions → confident
+    def _compute_emotion_metrics(self, emotions: Dict[str, float]) -> Dict[str, float]:
+        """Derive useful aggregates from raw emotion probabilities"""
+        negative_keys = ['sad', 'fear', 'angry', 'disgust']
+        negative_scores = {k: float(emotions.get(k, 0.0)) for k in negative_keys}
+        positive = float(emotions.get('happy', 0.0))
+        neutral = float(emotions.get('neutral', 0.0))
+        surprise = float(emotions.get('surprise', 0.0))
+        negative_sum = sum(negative_scores.values())
+        negative_peak = max(negative_scores.values()) if negative_scores else 0.0
+        balance = positive - negative_sum
+        calm_margin = neutral - negative_sum
+        return {
+            'negative_sum': round(negative_sum, 3),
+            'negative_peak': round(negative_peak, 3),
+            'positive': round(positive, 3),
+            'neutral': round(neutral, 3),
+            'surprise': round(surprise, 3),
+            'sadness': round(negative_scores.get('sad', 0.0), 3),
+            'fear': round(negative_scores.get('fear', 0.0), 3),
+            'angry': round(negative_scores.get('angry', 0.0), 3),
+            'disgust': round(negative_scores.get('disgust', 0.0), 3),
+            'balance': round(balance, 3),
+            'calm_margin': round(calm_margin, 3)
+        }
+    
+    def _map_emotion_to_state(self, dominant_emotion: str, emotions: Dict[str, float]) -> Tuple[str, Dict[str, float]]:
+        """Map detected emotions to interview states with richer heuristics"""
+        metrics = self._compute_emotion_metrics(emotions)
+        negative_sum = metrics['negative_sum']
+        negative_peak = metrics['negative_peak']
+        sadness = metrics['sadness']
+        surprise = metrics['surprise']
+        positive = metrics['positive']
+        neutral = metrics['neutral']
+        
+        state = 'calm'
+        
+        # High sadness/negative intensity → nervous
+        if sadness >= 0.2 or negative_peak >= 0.25 or negative_sum >= 0.45:
+            state = 'nervous'
+        # Moderate persistent negativity or surprise spikes → hesitant
+        elif negative_sum >= 0.3 or surprise >= 0.25:
+            state = 'hesitant'
+        # Happy & low negatives → confident
+        elif positive >= 0.28 and negative_sum < 0.2:
+            state = 'confident'
+        # Calm baseline
+        elif neutral >= 0.65 and negative_sum < 0.2:
+            state = 'calm'
+        # Fall back to dominant emotion rules
+        elif dominant_emotion in ['sad', 'fear', 'angry', 'disgust']:
+            state = 'nervous'
         elif dominant_emotion == 'happy':
-            return 'confident'
-        # Surprise could be either
+            state = 'confident'
         elif dominant_emotion == 'surprise':
-            if emotions.get('happy', 0) > 0.3:
-                return 'confident'
-            else:
-                return 'nervous'
-        # Neutral → calm
+            state = 'hesitant'
         else:
-            return 'calm'
+            state = 'calm'
+        
+        return state, metrics
     
     def _default_emotion(self) -> Dict:
         """Return default emotion when detection fails"""
+        baseline_metrics = self._compute_emotion_metrics({'neutral': 1.0})
         return {
             'emotions': {'neutral': 1.0},
             'dominant_emotion': 'neutral',
@@ -476,6 +657,7 @@ class FacialExpressionAnalyzer:
             'interview_state': 'neutral',
             'max_confidence': 1.0,
             'emotion_scores': {'neutral': 1.0},
+            'emotion_metrics': baseline_metrics,
             'detection_method': 'default'
         }
     
@@ -516,7 +698,7 @@ class FacialExpressionAnalyzer:
         # Normalize
         total = sum(aggregated.values())
         if total > 0:
-            aggregated = {k: v / total for k, v in aggregated.items()}
+            aggregated = {k: float(v / total) for k, v in aggregated.items()}
         else:
             aggregated = {'neutral': 1.0}
         
@@ -526,7 +708,7 @@ class FacialExpressionAnalyzer:
         print(f"📊 Aggregated emotions: {aggregated}")
         print(f"📊 Dominant: {dominant_emotion} ({max_confidence:.2%})")
         
-        interview_state = self._map_emotion_to_state(dominant_emotion, aggregated)
+        interview_state, metrics = self._map_emotion_to_state(dominant_emotion, aggregated)
         
         return {
             'emotions': aggregated,
@@ -535,7 +717,8 @@ class FacialExpressionAnalyzer:
             'interview_state': interview_state,
             'max_confidence': round(max_confidence, 2),
             'emotion_scores': aggregated,
-            'detection_method': 'OpenCV',
+            'emotion_metrics': metrics,
+            'detection_method': 'FER+ (ONNX)' if self.emotion_model_session else 'OpenCV (heuristic)',
             'frames_analyzed': successful_frames
         }
 
@@ -608,6 +791,7 @@ def calculate_combined_score(
     # Calculate emotion score
     emotions = emotion_data.get('emotions', {})
     interview_state = emotion_data.get('interview_state', 'neutral')
+    emotion_metrics = emotion_data.get('emotion_metrics', {})
     
     # Extract emotion values
     sad_score = emotions.get('sad', 0)
@@ -618,11 +802,18 @@ def calculate_combined_score(
     surprise_score = emotions.get('surprise', 0)
     disgust_score = emotions.get('disgust', 0)
     
+    # Override with metrics when available for better accuracy
+    negative_sum_metric = emotion_metrics.get('negative_sum')
+    max_negative_metric = emotion_metrics.get('negative_peak')
+    sadness_metric = emotion_metrics.get('sadness', sad_score)
+    happy_score = emotion_metrics.get('positive', happy_score)
+    neutral_score = emotion_metrics.get('neutral', neutral_score)
+    
     print(f"📊 Raw emotion scores: sad={sad_score:.2%}, fear={fear_score:.2%}, angry={angry_score:.2%}, happy={happy_score:.2%}, neutral={neutral_score:.2%}")
     
     # Calculate emotion score based on actual emotion distribution
-    negative_emotions = sad_score + fear_score + angry_score + disgust_score
-    max_negative = max(sad_score, fear_score, angry_score, disgust_score)
+    negative_emotions = negative_sum_metric if negative_sum_metric is not None else (sad_score + fear_score + angry_score + disgust_score)
+    max_negative = max_negative_metric if max_negative_metric is not None else max(sad_score, fear_score, angry_score, disgust_score)
     
     # Base score calculation (more forgiving)
     if happy_score > 0.3:
@@ -640,6 +831,15 @@ def calculate_combined_score(
         # Mixed emotions - more balanced
         emotion_score = 0.5 + (happy_score * 0.4) - (negative_emotions * 0.3)  # Better baseline
         emotion_score = max(0.3, min(1.0, emotion_score))  # Minimum 3/10 (was 0.5/10)
+    
+    # Additional adjustments based on richer metrics
+    if sadness_metric >= 0.2:
+        emotion_score *= 0.55
+    elif sadness_metric >= 0.15:
+        emotion_score *= 0.75
+    
+    if happy_score >= 0.35 and negative_emotions < 0.2:
+        emotion_score = min(1.0, emotion_score + 0.1)
     
     # Apply state-based modifiers (less harsh)
     if interview_state == 'nervous':

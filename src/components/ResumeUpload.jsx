@@ -8,6 +8,7 @@ export default function ResumeUpload({ onQuestionsGenerated, darkMode = true, th
   const [dragActive, setDragActive] = useState(false)
   const [error, setError] = useState('')
   const [scanProgress, setScanProgress] = useState(0)
+  const [questionCount, setQuestionCount] = useState(2)
 
   const accentGradient = theme.primaryGradient || 'linear-gradient(135deg, #654622 0%, #906E2F 45%, #B68B49 100%)'
   const accentColor = theme.accent || '#B68B49'
@@ -74,6 +75,7 @@ export default function ResumeUpload({ onQuestionsGenerated, darkMode = true, th
     try {
       const formData = new FormData()
       formData.append('resume', file)
+      formData.append('num_questions', questionCount)
 
       const response = await fetch('http://localhost:5000/api/analyze-resume', {
         method: 'POST',
@@ -416,6 +418,50 @@ export default function ResumeUpload({ onQuestionsGenerated, darkMode = true, th
                     </p>
                   </div>
                 )}
+              </div>
+
+              {/* Question count slider */}
+              <div style={{
+                marginTop: 30,
+                padding: 30,
+                borderRadius: 20,
+                background: theme.bgSecondary,
+                border: `1px solid ${theme.border}`,
+                boxShadow: `0 8px 24px ${theme.shadow}`,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 16
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: 18, fontWeight: 700, color: theme.text }}>
+                    Number of interview questions
+                  </span>
+                  <span style={{ fontSize: 16, fontWeight: 600, color: theme.accent }}>
+                    {questionCount} {questionCount === 1 ? 'question' : 'questions'}
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min="1"
+                  max="12"
+                  step="1"
+                  value={questionCount}
+                  disabled={analyzing}
+                  onChange={(e) => setQuestionCount(Number(e.target.value))}
+                  style={{
+                    width: '100%',
+                    accentColor,
+                    cursor: analyzing ? 'not-allowed' : 'pointer'
+                  }}
+                />
+                <p style={{
+                  margin: 0,
+                  fontSize: 14,
+                  color: theme.textSecondary,
+                  fontWeight: 500
+                }}>
+                  Choose between 1 and 12 questions. This will decide how many questions the interviewer will ask later.
+                </p>
               </div>
 
               {/* Analyze Button */}

@@ -7,7 +7,7 @@ GEMINI_API_KEY = 'AIzaSyCkTNP7tnR5hCoZAOM_tmJNZ7oAHp37F-E'
 GEMINI_MODEL = 'gemini-2.5-flash'
 
 # Number of questions to generate per session
-NUM_QUESTIONS = 8
+NUM_QUESTIONS = 2
 
 # Question difficulty levels
 DIFFICULTY_MAPPING = {

@@ -1,5 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react'
 import SpeechRecognition, { useSpeechRecognition } from 'react-speech-recognition'
+import * as blazeface from '@tensorflow-models/blazeface'
+import * as tf from '@tensorflow/tfjs-core'
+import '@tensorflow/tfjs-backend-webgl'
 
 export default function Interviewer({ 
   question="",
@@ -8,17 +11,26 @@ export default function Interviewer({
   isAnswered = false,
   disabled = false,
   darkMode = true,
-  theme = {}
+  theme = {},
+  practiceMode = false
 }) {
   const [recording, setRecording] = useState(false)
   const [manualText, setManualText] = useState('')
   const [elapsedTime, setElapsedTime] = useState(0)
+  const [cropFaceOnly, setCropFaceOnly] = useState(false)
+  const [faceDetectionAvailable, setFaceDetectionAvailable] = useState(false)
   const mediaRef = useRef(null)
   const recorderRef = useRef(null)
   const chunksRef = useRef([])
   const frameCaptureIntervalRef = useRef(null)
   const capturedFramesRef = useRef([])
   const timerIntervalRef = useRef(null)
+  const faceDetectorRef = useRef(null)
+  const blazeModelRef = useRef(null)
+  const detectorTypeRef = useRef('none')
+  const lastFaceBoxRef = useRef(null)
+  const cropFaceOnlyRef = useRef(cropFaceOnly)
+  const previewCanvasRef = useRef(null)
 
   const {
     transcript,
@@ -86,7 +98,196 @@ export default function Interviewer({
     }
   }, [])
 
-  const captureFrame = () => {
+  useEffect(() => {
+    cropFaceOnlyRef.current = cropFaceOnly
+    if (!cropFaceOnly && previewCanvasRef.current) {
+      const ctx = previewCanvasRef.current.getContext('2d')
+      ctx && ctx.clearRect(0, 0, previewCanvasRef.current.width, previewCanvasRef.current.height)
+    }
+  }, [cropFaceOnly])
+
+  useEffect(() => {
+    if (!cropFaceOnly || !previewCanvasRef.current || !mediaRef.current) return
+    
+    let animationFrameId = null
+    let cancelled = false
+    let lastDetectionTime = 0
+    const DETECTION_INTERVAL = 500 // Detect face every 500ms
+    
+    const updatePreview = async () => {
+      if (cancelled || !cropFaceOnlyRef.current || !mediaRef.current || !previewCanvasRef.current) return
+      
+      try {
+        const video = mediaRef.current
+        if (video.readyState < 2) {
+          animationFrameId = requestAnimationFrame(updatePreview)
+          return
+        }
+        
+        const now = Date.now()
+        const shouldDetect = (now - lastDetectionTime) > DETECTION_INTERVAL
+        
+        const canvas = document.createElement('canvas')
+        canvas.width = video.videoWidth || 640
+        canvas.height = video.videoHeight || 480
+        const ctx = canvas.getContext('2d')
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
+        
+        let cropped
+        if (shouldDetect) {
+          cropped = await cropCanvasToFace(canvas)
+          lastDetectionTime = now
+        } else {
+          // Use last known face box for faster updates
+          const box = lastFaceBoxRef.current
+          if (box) {
+            const pad = Math.max(box.width, box.height) * 0.35
+            const sx = Math.max(0, Math.floor(box.x - pad))
+            const sy = Math.max(0, Math.floor(box.y - pad))
+            const ex = Math.min(canvas.width, Math.ceil(box.x + box.width + pad))
+            const ey = Math.min(canvas.height, Math.ceil(box.y + box.height + pad))
+            const sw = Math.max(1, ex - sx)
+            const sh = Math.max(1, ey - sy)
+            const tempCropped = document.createElement('canvas')
+            tempCropped.width = 320
+            tempCropped.height = 320
+            const tempCtx = tempCropped.getContext('2d')
+            tempCtx.drawImage(canvas, sx, sy, sw, sh, 0, 0, tempCropped.width, tempCropped.height)
+            cropped = tempCropped
+          } else {
+            cropped = cropToCenteredRegion(canvas)
+          }
+        }
+        
+        if (cancelled || !previewCanvasRef.current) return
+        
+        const previewCtx = previewCanvasRef.current.getContext('2d')
+        const container = previewCanvasRef.current.parentElement
+        if (container) {
+          const containerWidth = container.clientWidth
+          const containerHeight = container.clientHeight
+          previewCanvasRef.current.width = containerWidth
+          previewCanvasRef.current.height = containerHeight
+          previewCtx.clearRect(0, 0, containerWidth, containerHeight)
+          previewCtx.drawImage(cropped, 0, 0, containerWidth, containerHeight)
+        }
+      } catch (err) {
+        console.warn('Preview update error:', err)
+      }
+      
+      if (!cancelled) {
+        animationFrameId = requestAnimationFrame(updatePreview)
+      }
+    }
+    
+    updatePreview()
+    
+    return () => {
+      cancelled = true
+      if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId)
+      }
+    }
+  }, [cropFaceOnly])
+
+  useEffect(() => {
+    let cancelled = false
+    const initDetectors = async () => {
+      if (typeof window === 'undefined' || cancelled) return
+      if ('FaceDetector' in window) {
+        try {
+          faceDetectorRef.current = new window.FaceDetector({ fastMode: true, maxDetectedFaces: 1 })
+          detectorTypeRef.current = 'native'
+          setFaceDetectionAvailable(true)
+          return
+        } catch (err) {
+          console.warn('FaceDetector initialization failed:', err)
+          faceDetectorRef.current = null
+        }
+      }
+      try {
+        await tf.setBackend('webgl')
+        await tf.ready()
+        const model = await blazeface.load()
+        if (cancelled) return
+        blazeModelRef.current = model
+        detectorTypeRef.current = 'blaze'
+        setFaceDetectionAvailable(true)
+      } catch (err) {
+        console.warn('BlazeFace load failed:', err)
+        blazeModelRef.current = null
+        detectorTypeRef.current = 'none'
+        setFaceDetectionAvailable(false)
+      }
+    }
+    initDetectors()
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const cropToCenteredRegion = (canvas) => {
+    const size = Math.min(canvas.width, canvas.height)
+    const sx = Math.max(0, Math.floor((canvas.width - size) / 2))
+    const sy = Math.max(0, Math.floor((canvas.height - size) / 2 - size * 0.1))
+    const cropped = document.createElement('canvas')
+    cropped.width = 320
+    cropped.height = 320
+    const ctx = cropped.getContext('2d')
+    ctx.drawImage(canvas, sx, Math.max(0, sy), size, size, 0, 0, cropped.width, cropped.height)
+    return cropped
+  }
+
+  const cropCanvasToFace = async (canvas) => {
+    let box = null
+    if (detectorTypeRef.current === 'native' && faceDetectorRef.current) {
+      try {
+        const faces = await faceDetectorRef.current.detect(canvas)
+        if (faces && faces.length) {
+          box = faces[0].boundingBox || faces[0]
+          lastFaceBoxRef.current = box
+        }
+      } catch (err) {
+        console.warn('Face detection failed:', err)
+      }
+    } else if (detectorTypeRef.current === 'blaze' && blazeModelRef.current) {
+      try {
+        const predictions = await blazeModelRef.current.estimateFaces(canvas, false)
+        if (predictions && predictions.length) {
+          const first = predictions[0]
+          const topLeft = first.topLeft
+          const bottomRight = first.bottomRight
+          const [x1, y1] = Array.isArray(topLeft) ? topLeft : [topLeft[0], topLeft[1]]
+          const [x2, y2] = Array.isArray(bottomRight) ? bottomRight : [bottomRight[0], bottomRight[1]]
+          box = { x: x1, y: y1, width: x2 - x1, height: y2 - y1 }
+          lastFaceBoxRef.current = box
+        }
+      } catch (err) {
+        console.warn('BlazeFace detection failed:', err)
+      }
+    }
+    if (!box && lastFaceBoxRef.current) {
+      box = lastFaceBoxRef.current
+    }
+    if (!box) {
+      return cropToCenteredRegion(canvas)
+    }
+    const pad = Math.max(box.width, box.height) * 0.35
+    const sx = Math.max(0, Math.floor(box.x - pad))
+    const sy = Math.max(0, Math.floor(box.y - pad))
+    const ex = Math.min(canvas.width, Math.ceil(box.x + box.width + pad))
+    const ey = Math.min(canvas.height, Math.ceil(box.y + box.height + pad))
+    const sw = Math.max(1, ex - sx)
+    const sh = Math.max(1, ey - sy)
+    const cropped = document.createElement('canvas')
+    cropped.width = 320
+    cropped.height = 320
+    const ctx = cropped.getContext('2d')
+    ctx.drawImage(canvas, sx, sy, sw, sh, 0, 0, cropped.width, cropped.height)
+    return cropped
+  }
+
+  const captureFrame = async () => {
     if (mediaRef.current && mediaRef.current.readyState === 4) {
       try {
         const canvas = document.createElement('canvas')
@@ -94,9 +295,13 @@ export default function Interviewer({
         canvas.height = mediaRef.current.videoHeight || 480
         const ctx = canvas.getContext('2d')
         ctx.drawImage(mediaRef.current, 0, 0, canvas.width, canvas.height)
+        let workingCanvas = canvas
+        if (cropFaceOnlyRef.current) {
+          workingCanvas = await cropCanvasToFace(canvas)
+        }
         
         // Convert to base64
-        const base64Image = canvas.toDataURL('image/jpeg', 0.8)
+        const base64Image = workingCanvas.toDataURL('image/jpeg', 0.8)
         capturedFramesRef.current.push(base64Image)
         
         // Keep only last 10 frames (to avoid memory issues)
@@ -141,11 +346,13 @@ export default function Interviewer({
       
       // Start capturing frames every 2 seconds
       frameCaptureIntervalRef.current = setInterval(() => {
-        captureFrame()
+        captureFrame().catch(err => console.error('Frame capture error:', err))
       }, 2000)
       
       // Capture initial frame
-      setTimeout(() => captureFrame(), 500)
+      setTimeout(() => {
+        captureFrame().catch(err => console.error('Frame capture error:', err))
+      }, 500)
     } catch (err) {
       console.error('Recording error:', err)
       alert('Failed to start recording')
@@ -174,6 +381,11 @@ export default function Interviewer({
       return
     }
     
+    if (practiceMode) {
+      alert('Practice mode is read-only. Generate interview questions to save your answers.')
+      return
+    }
+    
     let audioBlob = null
     let videoFrames = []
     
@@ -191,7 +403,7 @@ export default function Interviewer({
     
     // Capture final frame
     if (recording) {
-      captureFrame()
+      await captureFrame().catch(err => console.error('Final frame capture error:', err))
     }
     
     if (recording && recorderRef.current && recorderRef.current.state !== 'inactive') {
@@ -217,7 +429,8 @@ export default function Interviewer({
     await onSubmit({ 
       audioBlob: audioBlob, 
       transcript: currentTranscript,
-      videoFrames: videoFrames
+      videoFrames: videoFrames,
+      cropFaceOnly
     })
     
     resetTranscript()
@@ -240,25 +453,108 @@ export default function Interviewer({
         transition: 'all 0.3s ease'
       }}>
         {/* Video Section */}
-        <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-          <video
-            ref={mediaRef}
-            autoPlay
-            muted
-            style={{ 
-              width: '100%', 
-              height: '100%', 
-              borderRadius: 12, 
-              background: '#000', 
-              objectFit: 'cover', 
-              minHeight: 400,
-              border: `1px solid ${theme.border}`
-            }}
-          />
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div style={{ 
+            flex: 1, 
+            position: 'relative', 
+            display: 'flex', 
+            justifyContent: 'center', 
+            alignItems: 'center' 
+          }}>
+            <video
+              ref={mediaRef}
+              autoPlay
+              muted
+              style={{ 
+                width: '100%', 
+                height: '100%', 
+                borderRadius: 12, 
+                background: '#000', 
+                objectFit: 'cover', 
+                minHeight: 400,
+                border: `1px solid ${theme.border}`,
+                opacity: cropFaceOnly ? 0 : 1,
+                transition: 'opacity 0.2s ease'
+              }}
+            />
+            <canvas
+              ref={previewCanvasRef}
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                height: '100%',
+                borderRadius: 12,
+                border: `1px solid ${theme.border}`,
+                display: cropFaceOnly ? 'block' : 'none',
+                background: '#000',
+                objectFit: 'cover',
+                zIndex: 1
+              }}
+            />
+            {cropFaceOnly && (
+              <div style={{
+                position: 'absolute',
+                top: 16,
+                right: 16,
+                padding: '6px 12px',
+                borderRadius: 999,
+                background: 'rgba(0,0,0,0.6)',
+                color: '#fff',
+                fontSize: 12,
+                fontWeight: 600,
+                letterSpacing: '0.5px'
+              }}>
+                Cropping enabled
+              </div>
+            )}
+          </div>
+          <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 6,
+            padding: 12,
+            borderRadius: 12,
+            border: `1px solid ${theme.border}`,
+            background: theme.bgSecondary
+          }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 10, fontWeight: 600, color: theme.text }}>
+              <input
+                type="checkbox"
+                checked={cropFaceOnly}
+                onChange={(e) => setCropFaceOnly(e.target.checked)}
+                style={{ width: 18, height: 18 }}
+              />
+              Crop video to face before analysis
+            </label>
+            <span style={{ fontSize: 12, color: theme.textSecondary }}>
+              {cropFaceOnly
+                ? (faceDetectionAvailable
+                    ? 'Auto face detection is active. Only the detected face is recorded.'
+                    : 'FaceDetector unavailable. Falling back to a centered crop.')
+                : 'Send the raw frame without cropping.'}
+            </span>
+          </div>
         </div>
 
         {/* Answer Section */}
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+          {practiceMode && (
+            <div style={{
+              marginBottom: 12,
+              padding: 12,
+              borderRadius: 12,
+              border: `1px solid ${theme.warning}`,
+              background: darkMode ? theme.warning + '15' : '#FFF3E0',
+              color: theme.warning,
+              fontWeight: 600,
+              fontSize: 14
+            }}>
+              Practice mode is for testing audio/video only. Saving answers is disabled here.
+            </div>
+          )}
+
           <textarea
             rows={10}
             value={finalTranscript}
@@ -361,26 +657,36 @@ export default function Interviewer({
             {/* Save & Next Button */}
             <button
               onClick={handleSaveAndNext}
-              disabled={saving || !finalTranscript.trim() || disabled}
+              disabled={practiceMode || saving || !finalTranscript.trim() || disabled}
               style={{ 
                 padding: '12px 24px', 
                 borderRadius: 12, 
                 border: 'none', 
-                background: (saving || !finalTranscript.trim() || disabled) ? theme.border : theme.accent,
+                background: (practiceMode || saving || !finalTranscript.trim() || disabled) ? theme.border : theme.accent,
                 color: '#fff', 
                 fontWeight: 600,
                 fontSize: 14,
-                cursor: (saving || !finalTranscript.trim() || disabled) ? 'not-allowed' : 'pointer',
-                opacity: (saving || !finalTranscript.trim() || disabled) ? 0.6 : 1,
+                cursor: (practiceMode || saving || !finalTranscript.trim() || disabled) ? 'not-allowed' : 'pointer',
+                opacity: (practiceMode || saving || !finalTranscript.trim() || disabled) ? 0.5 : 1,
                 display: 'flex',
                 alignItems: 'center',
                 gap: 8,
                 transition: 'all 0.2s ease',
-                boxShadow: (saving || !finalTranscript.trim() || disabled) ? 'none' : `0 4px 12px ${theme.shadow}`
+                boxShadow: (practiceMode || saving || !finalTranscript.trim() || disabled) ? 'none' : `0 4px 12px ${theme.shadow}`
               }}
-              title={disabled ? "Please wait for feedback" : "Save answer and move to next question"}
+              title={
+                practiceMode
+                  ? "Practice mode is read-only"
+                  : disabled
+                    ? "Please wait for feedback"
+                    : "Save answer and move to next question"
+              }
             >
-              {saving ? 'Saving...' : 'Save & Next'}
+              {practiceMode
+                ? 'Save Disabled (Practice Mode)'
+                : saving
+                  ? 'Saving...'
+                  : 'Save & Next'}
             </button>
 
             <button
