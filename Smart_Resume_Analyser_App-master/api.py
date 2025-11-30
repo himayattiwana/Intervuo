@@ -66,12 +66,28 @@ db_cursor = None
 
 try:
     import pymysql
-    db_connection = pymysql.connect(host='localhost', user='root', password='')
+    # Get database credentials from environment variables (for production) or use defaults (for local)
+    DB_HOST = os.environ.get('DB_HOST', 'localhost')
+    DB_USER = os.environ.get('DB_USER', 'root')
+    DB_PASSWORD = os.environ.get('DB_PASSWORD', '')
+    DB_NAME = os.environ.get('DB_NAME', 'sra')
+    DB_PORT = int(os.environ.get('DB_PORT', '3306'))
+    
+    # Connect to database
+    db_connection = pymysql.connect(
+        host=DB_HOST,
+        user=DB_USER,
+        password=DB_PASSWORD,
+        port=DB_PORT,
+        charset='utf8mb4'
+    )
     db_cursor = db_connection.cursor()
     
-    # Create database if not exists
-    db_cursor.execute("CREATE DATABASE IF NOT EXISTS SRA;")
-    db_connection.select_db("sra")
+    # Create database if not exists (only if using localhost, cloud DBs usually pre-create)
+    if DB_HOST == 'localhost':
+        db_cursor.execute(f"CREATE DATABASE IF NOT EXISTS {DB_NAME};")
+    
+    db_connection.select_db(DB_NAME)
     
     # Create interview_sessions table
     session_table_sql = """

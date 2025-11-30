@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import API from '../config/api'
 
 export default function ResumeUpload({ onQuestionsGenerated, darkMode = true, theme = {} }) {
   const [file, setFile] = useState(null)
@@ -77,7 +78,7 @@ export default function ResumeUpload({ onQuestionsGenerated, darkMode = true, th
       formData.append('resume', file)
       formData.append('num_questions', questionCount)
 
-      const response = await fetch('http://localhost:5000/api/analyze-resume', {
+      const response = await fetch(API.ENDPOINTS.ANALYZE_RESUME, {
         method: 'POST',
         body: formData
       })

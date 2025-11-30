@@ -21,3 +21,4 @@ numpy
 textblob
 vaderSentiment
 onnxruntime
+gunicorn

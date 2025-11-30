@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import API from '../config/api'
 
 export default function InterviewReport({ sessionId, onClose, darkMode = true, theme = {} }) {
   const [report, setReport] = useState(null)
@@ -19,7 +20,7 @@ export default function InterviewReport({ sessionId, onClose, darkMode = true, t
     setLoading(true)
     setError(null)
     try {
-      const response = await fetch(`http://localhost:5000/api/get-session-report/${sessionId}`)
+      const response = await fetch(API.ENDPOINTS.GET_SESSION_REPORT(sessionId))
       const data = await response.json().catch(() => null)
       if (!response.ok) {
         throw new Error(data?.error || 'Failed to load interview report.')

@@ -4,6 +4,7 @@ import FeedbackPanel from './components/FeedbackPanel'
 import InterviewReport from './components/InterviewReport'
 import Login from './components/Login'
 import { useState, useEffect } from 'react'
+import API from './config/api'
 import './App.css'
 
 function App() {  
@@ -65,7 +66,7 @@ function App() {
 
   const createSession = async (info) => {
     try {
-      const response = await fetch('http://localhost:5000/api/create-session', {
+      const response = await fetch(API.ENDPOINTS.CREATE_SESSION, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(info)
@@ -127,7 +128,7 @@ function App() {
         formData.append('audio', answerData.audioBlob, 'recording.webm')
       }
 
-      const response = await fetch('http://localhost:5000/api/save-answer', {
+      const response = await fetch(API.ENDPOINTS.SAVE_ANSWER, {
         method: 'POST',
         body: formData
       })
@@ -156,7 +157,7 @@ function App() {
     setFeedback(null)
     
     try {
-      const response = await fetch('http://localhost:5000/api/analyze-answer', {
+      const response = await fetch(API.ENDPOINTS.ANALYZE_ANSWER, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
