@@ -25,3 +25,4 @@ DIFFICULTY_MAPPING = {
 # Higher value = more unique questions each time  
 TEMPERATURE = float(os.environ.get('TEMPERATURE', '1.2'))  # Very high creativity for maximum uniqueness
 
+
