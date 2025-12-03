@@ -1,7 +1,9 @@
 # Google Gemini API Configuration
+import os
 
-# Replace 'YOUR_API_KEY_HERE' with your actual Gemini API key
-GEMINI_API_KEY = 'AIzaSyCkTNP7tnR5hCoZAOM_tmJNZ7oAHp37F-E'
+# Get API key from environment variable (set in Render dashboard)
+# Fallback to empty string if not set (will cause error, which is intentional for security)
+GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY', '')
 
 # Gemini Model - use gemini-pro (stable and widely available)
 GEMINI_MODEL = 'gemini-2.5-flash'

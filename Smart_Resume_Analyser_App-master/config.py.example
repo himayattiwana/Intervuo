@@ -1,0 +1,27 @@
+# Google Gemini API Configuration
+# Copy this file to config.py and fill in your values
+# OR use environment variables (recommended for production)
+
+import os
+
+# Get API key from environment variable (recommended)
+# Set GEMINI_API_KEY in your Render dashboard under Environment Variables
+GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY', 'YOUR_API_KEY_HERE')
+
+# Gemini Model - use gemini-pro (stable and widely available)
+GEMINI_MODEL = os.environ.get('GEMINI_MODEL', 'gemini-2.5-flash')
+
+# Number of questions to generate per session
+NUM_QUESTIONS = int(os.environ.get('NUM_QUESTIONS', '2'))
+
+# Question difficulty levels
+DIFFICULTY_MAPPING = {
+    'Fresher': 'entry-level',
+    'Intermediate': 'intermediate-level',
+    'Experienced': 'advanced-level'
+}
+
+# Temperature for AI creativity (0.0 = deterministic, 1.0 = creative)
+# Higher value = more unique questions each time  
+TEMPERATURE = float(os.environ.get('TEMPERATURE', '1.2'))  # Very high creativity for maximum uniqueness
+
