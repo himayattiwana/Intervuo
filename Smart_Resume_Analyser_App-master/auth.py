@@ -64,7 +64,9 @@ def _is_thapar_email(email):
 
 def _make_token(user):
     payload = {
-        'sub': user['id'],
+        # PyJWT (2.10+) requires the "sub" claim to be a string per the JWT
+        # spec — an int here fails validation on decode with InvalidSubjectError.
+        'sub': str(user['id']),
         'email': user['email'],
         'name': user['name'],
         'is_thapar': bool(user['is_thapar']),
@@ -198,7 +200,7 @@ def login():
 def me():
     payload = g.current_user
     return jsonify({'user': {
-        'id': payload['sub'],
+        'id': int(payload['sub']),
         'name': payload['name'],
         'email': payload['email'],
         'is_thapar': bool(payload['is_thapar']),
