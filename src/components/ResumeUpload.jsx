@@ -1,7 +1,14 @@
 import React, { useState } from 'react'
 import API from '../config/api'
 
-export default function ResumeUpload({ onQuestionsGenerated, darkMode = true, theme = {} }) {
+export default function ResumeUpload({
+  onQuestionsGenerated,
+  onUseRealQuestions,
+  isThapar = false,
+  authToken = null,
+  darkMode = true,
+  theme = {}
+}) {
   const [file, setFile] = useState(null)
   const [fileName, setFileName] = useState('')
   const [analyzing, setAnalyzing] = useState(false)
@@ -10,6 +17,9 @@ export default function ResumeUpload({ onQuestionsGenerated, darkMode = true, th
   const [error, setError] = useState('')
   const [scanProgress, setScanProgress] = useState(0)
   const [questionCount, setQuestionCount] = useState(2)
+  const [matching, setMatching] = useState(false)
+  const [matchError, setMatchError] = useState('')
+  const [matchedQuestions, setMatchedQuestions] = useState(null)
 
   const accentGradient = theme.primaryGradient || 'linear-gradient(135deg, #654622 0%, #906E2F 45%, #B68B49 100%)'
   const accentColor = theme.accent || '#B68B49'
@@ -121,6 +131,53 @@ export default function ResumeUpload({ onQuestionsGenerated, darkMode = true, th
     setFileName('')
     setResults(null)
     setError('')
+    setMatchedQuestions(null)
+    setMatchError('')
+  }
+
+  // Ask the backend to rank the real Thapar question bank against this
+  // resume's extracted skills (server-side gated to @thapar.edu accounts).
+  const fetchMatchedQuestions = async () => {
+    if (!results) return
+    setMatching(true)
+    setMatchError('')
+    try {
+      const response = await fetch(API.ENDPOINTS.THAPAR_MATCH_QUESTIONS, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${authToken}`
+        },
+        body: JSON.stringify({
+          skills: results.skills || [],
+          resume_text: [results.recommendedField, ...(results.skills || [])].join(' '),
+          top_n: questionCount >= 8 ? 15 : 10
+        })
+      })
+      const data = await response.json()
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to match questions')
+      }
+      setMatchedQuestions(data.questions || [])
+    } catch (err) {
+      console.error('Error matching Thapar questions:', err)
+      setMatchError(err.message || 'Failed to match real questions. Please try again.')
+    } finally {
+      setMatching(false)
+    }
+  }
+
+  const useMatchedQuestions = () => {
+    if (!matchedQuestions || matchedQuestions.length === 0 || !onUseRealQuestions) return
+    onUseRealQuestions(
+      matchedQuestions.map(q => q.question_text),
+      {
+        name: results.name,
+        email: results.email,
+        field: results.recommendedField,
+        level: results.level
+      }
+    )
   }
 
   return (
@@ -759,6 +816,118 @@ export default function ResumeUpload({ onQuestionsGenerated, darkMode = true, th
                 <p style={{ marginTop: 25, fontSize: 14, opacity: 0.9, textAlign: 'center', fontWeight: 500 }}>
                   These questions are also available in the Virtual Interviewer section
                 </p>
+              </div>
+            )}
+
+            {/* Thapar Question Bank: choose real matched questions instead of Gemini's */}
+            {isThapar && (
+              <div style={{
+                background: theme.bgCard,
+                borderRadius: 24,
+                padding: 40,
+                marginBottom: 30,
+                border: `1px solid ${theme.accent}`,
+                boxShadow: `0 20px 60px ${theme.shadow}`
+              }}>
+                <h2 style={{ margin: '0 0 10px 0', fontSize: 24, color: theme.text }}>
+                  🎓 Practice with Real Interview Questions
+                </h2>
+                <p style={{ margin: '0 0 20px 0', color: theme.textSecondary, lineHeight: 1.6 }}>
+                  You have access to Thapar's previous-year placement question bank. We can match questions
+                  from it to your resume's skills instead of using freshly AI-generated ones — your answers
+                  are still analyzed and scored by Gemini either way.
+                </p>
+
+                {!matchedQuestions ? (
+                  <button
+                    onClick={fetchMatchedQuestions}
+                    disabled={matching}
+                    style={{
+                      padding: '14px 28px',
+                      borderRadius: 12,
+                      border: 'none',
+                      background: matching ? theme.textTertiary : theme.accent,
+                      color: '#fff',
+                      fontWeight: 700,
+                      fontSize: 15,
+                      cursor: matching ? 'not-allowed' : 'pointer'
+                    }}
+                  >
+                    {matching ? 'Matching your skills…' : 'Find Real Questions Matched to My Skills'}
+                  </button>
+                ) : (
+                  <>
+                    <div style={{
+                      background: theme.bgSecondary,
+                      borderRadius: 16,
+                      padding: 20,
+                      marginBottom: 16,
+                      maxHeight: 320,
+                      overflowY: 'auto'
+                    }}>
+                      {matchedQuestions.length === 0 ? (
+                        <p style={{ color: theme.textSecondary, margin: 0 }}>No close matches found — try uploading a resume with more listed skills.</p>
+                      ) : matchedQuestions.map((q, i) => (
+                        <div key={q.id || i} style={{
+                          marginBottom: 10,
+                          padding: 14,
+                          borderRadius: 10,
+                          background: theme.bgCard,
+                          border: `1px solid ${theme.border}`
+                        }}>
+                          <span style={{
+                            fontSize: 11,
+                            fontWeight: 700,
+                            textTransform: 'uppercase',
+                            color: theme.accent,
+                            marginRight: 8
+                          }}>
+                            {q.question_type === 'hr' ? 'HR' : 'Technical'}
+                          </span>
+                          <span style={{ fontSize: 14, color: theme.text }}>{q.question_text}</span>
+                        </div>
+                      ))}
+                    </div>
+                    <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                      {matchedQuestions.length > 0 && (
+                        <button
+                          onClick={useMatchedQuestions}
+                          style={{
+                            padding: '12px 24px',
+                            borderRadius: 12,
+                            border: 'none',
+                            background: theme.accent,
+                            color: '#fff',
+                            fontWeight: 700,
+                            fontSize: 14,
+                            cursor: 'pointer'
+                          }}
+                        >
+                          Use These Real Questions →
+                        </button>
+                      )}
+                      <button
+                        onClick={() => { setMatchedQuestions(null); setMatchError('') }}
+                        style={{
+                          padding: '12px 24px',
+                          borderRadius: 12,
+                          border: `1px solid ${theme.border}`,
+                          background: 'transparent',
+                          color: theme.textSecondary,
+                          fontWeight: 600,
+                          fontSize: 14,
+                          cursor: 'pointer'
+                        }}
+                      >
+                        Re-match
+                      </button>
+                    </div>
+                  </>
+                )}
+
+                {matchError && (
+                  <p style={{ marginTop: 16, color: theme.error, fontSize: 14 }}>{matchError}</p>
+                )}
               </div>
             )}
 

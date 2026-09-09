@@ -22,7 +22,14 @@ DIFFICULTY_MAPPING = {
 }
 
 # Temperature for AI creativity (0.0 = deterministic, 1.0 = creative)
-# Higher value = more unique questions each time  
+# Higher value = more unique questions each time
 TEMPERATURE = float(os.environ.get('TEMPERATURE', '1.2'))  # Very high creativity for maximum uniqueness
+
+# Secret key used to sign auth JWTs. Set a real random value via env var in production.
+JWT_SECRET = os.environ.get('JWT_SECRET', 'YOUR_SECRET_HERE')
+JWT_EXPIRY_HOURS = int(os.environ.get('JWT_EXPIRY_HOURS', '168'))  # 7 days
+
+# Email domain that unlocks the Thapar previous-year company question bank.
+THAPAR_EMAIL_DOMAIN = 'thapar.edu'
 
 

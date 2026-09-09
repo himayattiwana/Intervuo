@@ -7,8 +7,11 @@ import { useState, useEffect } from 'react'
 import API from './config/api'
 import './App.css'
 
-function App() {  
+function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false)
+  const [isDemo, setIsDemo] = useState(false)
+  const [authToken, setAuthToken] = useState(null)
+  const [currentUser, setCurrentUser] = useState(null)
   const [currentPage, setCurrentPage] = useState('resume')
   const [generatedQuestions, setGeneratedQuestions] = useState([])
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
@@ -40,20 +43,54 @@ function App() {
   }
 
   useEffect(() => {
-    const loggedIn = localStorage.getItem('intervuo_logged_in')
-    if (loggedIn === 'true') {
+    const storedDemo = localStorage.getItem('intervuo_demo')
+    const storedToken = localStorage.getItem('intervuo_token')
+    const storedUser = localStorage.getItem('intervuo_user')
+
+    if (storedDemo === 'true') {
       setIsLoggedIn(true)
+      setIsDemo(true)
+      setCurrentUser({ name: 'Demo User', email: 'demo@intervuo.local', is_thapar: false })
+    } else if (storedToken && storedUser) {
+      setIsLoggedIn(true)
+      setIsDemo(false)
+      setAuthToken(storedToken)
+      try {
+        setCurrentUser(JSON.parse(storedUser))
+      } catch {
+        setCurrentUser(null)
+      }
     }
   }, [])
 
-  const handleLogin = () => {
+  // Called by Login with { demo: true, user } for demo mode,
+  // or { demo: false, token, user } after a real signup/login.
+  const handleLogin = ({ demo, token, user }) => {
     setIsLoggedIn(true)
-    localStorage.setItem('intervuo_logged_in', 'true')
+    setIsDemo(!!demo)
+    setCurrentUser(user || null)
+
+    if (demo) {
+      localStorage.setItem('intervuo_demo', 'true')
+      localStorage.removeItem('intervuo_token')
+      localStorage.removeItem('intervuo_user')
+      setAuthToken(null)
+    } else {
+      setAuthToken(token)
+      localStorage.setItem('intervuo_token', token)
+      localStorage.setItem('intervuo_user', JSON.stringify(user))
+      localStorage.removeItem('intervuo_demo')
+    }
   }
 
   const handleLogout = () => {
     setIsLoggedIn(false)
-    localStorage.removeItem('intervuo_logged_in')
+    setIsDemo(false)
+    setAuthToken(null)
+    setCurrentUser(null)
+    localStorage.removeItem('intervuo_demo')
+    localStorage.removeItem('intervuo_token')
+    localStorage.removeItem('intervuo_user')
     setCurrentPage('resume')
     setGeneratedQuestions([])
     setCurrentQuestionIndex(0)
@@ -233,6 +270,20 @@ function App() {
     }
   }
 
+  // Swap the auto-generated Gemini questions for real, skill-matched
+  // previous-year Thapar questions (same handoff shape as
+  // ResumeUpload's onQuestionsGenerated) — answers are still scored by
+  // Gemini afterwards, only the question source changes.
+  const handleUseRealQuestions = async (questions, resumeInfo) => {
+    await handleQuestionsGenerated(questions, {
+      name: resumeInfo?.name || currentUser?.name || 'Anonymous',
+      email: resumeInfo?.email || currentUser?.email || 'N/A',
+      field: resumeInfo?.field ? `Thapar Match: ${resumeInfo.field}` : 'Thapar Question Bank',
+      level: resumeInfo?.level || 'Intermediate'
+    })
+    setCurrentPage('interview')
+  }
+
   const getCurrentQuestion = () => {
     if (generatedQuestions.length > 0) {
       return generatedQuestions[currentQuestionIndex]
@@ -372,6 +423,19 @@ function App() {
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: 15 }}>
+              {isDemo && (
+                <div style={{
+                  padding: '8px 16px',
+                  borderRadius: 20,
+                  background: theme.warning + '20',
+                  color: theme.warning,
+                  fontSize: 13,
+                  fontWeight: 600,
+                  border: `1px solid ${theme.warning}`
+                }}>
+                  Demo Mode
+                </div>
+              )}
               {sessionInfo && (
                 <div style={{
                   padding: '8px 16px',
@@ -694,8 +758,11 @@ function App() {
               />
             </div>
           ) : (
-            <ResumeUpload 
+            <ResumeUpload
               onQuestionsGenerated={handleQuestionsGenerated}
+              onUseRealQuestions={handleUseRealQuestions}
+              isThapar={!!currentUser?.is_thapar}
+              authToken={authToken}
               darkMode={darkMode}
               theme={theme}
             />

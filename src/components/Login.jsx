@@ -1,13 +1,20 @@
 import React, { useState, useEffect } from 'react'
+import API from '../config/api'
 
 export default function Login({ onLogin, darkMode = true, theme = {} }) {
-  const [username, setUsername] = useState('')
+  const [mode, setMode] = useState('login') // 'login' | 'signup'
+  const [name, setName] = useState('')
+  const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [demoUsername, setDemoUsername] = useState('')
+  const [demoPassword, setDemoPassword] = useState('')
   const [error, setError] = useState('')
+  const [info, setInfo] = useState('')
   const [currentFeature, setCurrentFeature] = useState(0)
   const [particles, setParticles] = useState([])
   const [isLoading, setIsLoading] = useState(false)
-  const [showCredentials, setShowCredentials] = useState(false)
+  const [showDemoLogin, setShowDemoLogin] = useState(false)
 
   const features = [
     {
@@ -33,6 +40,12 @@ export default function Login({ onLogin, darkMode = true, theme = {} }) {
       title: 'Performance Reports',
       description: 'Track your progress with detailed analytics and improvement suggestions',
       color: '#4D574E'
+    },
+    {
+      icon: '🎓',
+      title: 'Thapar Question Bank',
+      description: 'Sign up with your @thapar.edu email to unlock previous-year company-wise interview questions',
+      color: '#B68B49'
     }
   ]
 
@@ -57,20 +70,75 @@ export default function Login({ onLogin, darkMode = true, theme = {} }) {
     return () => clearInterval(interval)
   }, [])
 
-  const handleSubmit = (e) => {
+  const handleDemoSubmit = (e) => {
     e.preventDefault()
     setError('')
     setIsLoading(true)
 
-    // Simulate loading
     setTimeout(() => {
-      if (username === 'admin' && password === 'admin') {
-        onLogin()
+      if (demoUsername === 'admin' && demoPassword === 'admin') {
+        onLogin({ demo: true, user: { name: 'Demo User', email: 'demo@intervuo.local', is_thapar: false } })
       } else {
-        setError('Invalid credentials. Use admin/admin')
+        setError('Invalid demo credentials. Use admin / admin.')
         setIsLoading(false)
       }
-    }, 1500)
+    }, 800)
+  }
+
+  const handleAuthSubmit = async (e) => {
+    e.preventDefault()
+    setError('')
+    setInfo('')
+
+    if (mode === 'signup') {
+      if (!name.trim()) {
+        setError('Please enter your name.')
+        return
+      }
+      if (password.length < 8) {
+        setError('Password must be at least 8 characters.')
+        return
+      }
+      if (password !== confirmPassword) {
+        setError('Passwords do not match.')
+        return
+      }
+    }
+    if (!email.trim() || !password) {
+      setError('Please enter your email and password.')
+      return
+    }
+
+    setIsLoading(true)
+    try {
+      const endpoint = mode === 'signup' ? API.ENDPOINTS.SIGNUP : API.ENDPOINTS.LOGIN
+      const body = mode === 'signup'
+        ? { name: name.trim(), email: email.trim(), password }
+        : { email: email.trim(), password }
+
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      })
+      const data = await response.json()
+
+      if (!response.ok) {
+        setError(data.error || 'Something went wrong. Please try again.')
+        setIsLoading(false)
+        return
+      }
+
+      if (mode === 'signup' && data.user?.is_thapar) {
+        setInfo('🎓 Thapar email detected — the previous-year company question bank is unlocked on your account!')
+      }
+
+      onLogin({ demo: false, token: data.token, user: data.user })
+    } catch (err) {
+      console.error('Auth error:', err)
+      setError('Could not reach the server. Is the backend running?')
+      setIsLoading(false)
+    }
   }
 
   const heroGradient = theme.primaryGradient || 'linear-gradient(135deg, #3A2F23 0%, #5A452E 45%, #B68B49 100%)'
@@ -373,6 +441,40 @@ export default function Login({ onLogin, darkMode = true, theme = {} }) {
               animation: 'scan 3s ease-in-out infinite'
             }} />
 
+            {/* Login / Sign Up Tab Switch */}
+            <div style={{
+              display: 'flex',
+              gap: 8,
+              marginBottom: 30,
+              background: 'rgba(255, 255, 255, 0.05)',
+              borderRadius: 12,
+              padding: 6
+            }}>
+              {['login', 'signup'].map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => { setMode(m); setError(''); setInfo('') }}
+                  style={{
+                    flex: 1,
+                    padding: '10px 0',
+                    borderRadius: 8,
+                    border: 'none',
+                    background: mode === m ? accentGradient : 'transparent',
+                    color: '#FFFFFF',
+                    fontSize: 14,
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    textTransform: 'uppercase',
+                    letterSpacing: '1px',
+                    transition: 'all 0.2s ease'
+                  }}
+                >
+                  {m === 'login' ? 'Log In' : 'Sign Up'}
+                </button>
+              ))}
+            </div>
+
             <h2 style={{
               fontSize: 32,
               fontWeight: 700,
@@ -380,18 +482,53 @@ export default function Login({ onLogin, darkMode = true, theme = {} }) {
               marginBottom: 10,
               letterSpacing: '-1px'
             }}>
-              Welcome Back
+              {mode === 'login' ? 'Welcome Back' : 'Create Your Account'}
             </h2>
             <p style={{
               fontSize: 16,
               color: darkMode ? 'rgba(255, 255, 255, 0.6)' : 'rgba(255, 255, 255, 0.8)',
-              marginBottom: 40
+              marginBottom: 30
             }}>
-              Login to continue your interview practice
+              {mode === 'login'
+                ? 'Log in to continue your interview practice'
+                : 'Sign up with your real email for full functionality'}
             </p>
 
-            <form onSubmit={handleSubmit}>
-              {/* Username Field */}
+            <form onSubmit={handleAuthSubmit}>
+              {mode === 'signup' && (
+                <div style={{ marginBottom: 24 }}>
+                  <label style={{
+                    display: 'block',
+                    fontSize: 14,
+                    fontWeight: 600,
+                    color: darkMode ? 'rgba(255, 255, 255, 0.8)' : 'rgba(255, 255, 255, 0.9)',
+                    marginBottom: 10,
+                    textTransform: 'uppercase',
+                    letterSpacing: '1px'
+                  }}>
+                    Full Name
+                  </label>
+                  <input
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="Enter your name"
+                    style={{
+                      width: '100%',
+                      padding: '16px 20px',
+                      borderRadius: 12,
+                      border: `2px solid ${darkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.3)'}`,
+                      background: darkMode ? 'rgba(255, 255, 255, 0.05)' : 'rgba(255, 255, 255, 0.2)',
+                      color: '#FFFFFF',
+                      fontSize: 16,
+                      outline: 'none',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                </div>
+              )}
+
+              {/* Email Field */}
               <div style={{ marginBottom: 24 }}>
                 <label style={{
                   display: 'block',
@@ -402,14 +539,14 @@ export default function Login({ onLogin, darkMode = true, theme = {} }) {
                   textTransform: 'uppercase',
                   letterSpacing: '1px'
                 }}>
-                  Username
+                  Email
                 </label>
                 <div style={{ position: 'relative' }}>
                   <input
-                    type="text"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    placeholder="Enter username"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder={mode === 'signup' ? 'you@thapar.edu or any email' : 'Enter your email'}
                     style={{
                       width: '100%',
                       padding: '16px 20px',
@@ -438,13 +575,13 @@ export default function Login({ onLogin, darkMode = true, theme = {} }) {
                     transform: 'translateY(-50%)',
                     fontSize: 20
                   }}>
-                    👤
+                    📧
                   </div>
                 </div>
               </div>
 
               {/* Password Field */}
-              <div style={{ marginBottom: 32 }}>
+              <div style={{ marginBottom: mode === 'signup' ? 24 : 32 }}>
                 <label style={{
                   display: 'block',
                   fontSize: 14,
@@ -461,7 +598,7 @@ export default function Login({ onLogin, darkMode = true, theme = {} }) {
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Enter password"
+                    placeholder={mode === 'signup' ? 'At least 8 characters' : 'Enter password'}
                     style={{
                       width: '100%',
                       padding: '16px 20px',
@@ -495,6 +632,39 @@ export default function Login({ onLogin, darkMode = true, theme = {} }) {
                 </div>
               </div>
 
+              {mode === 'signup' && (
+                <div style={{ marginBottom: 32 }}>
+                  <label style={{
+                    display: 'block',
+                    fontSize: 14,
+                    fontWeight: 600,
+                    color: darkMode ? 'rgba(255, 255, 255, 0.8)' : 'rgba(255, 255, 255, 0.9)',
+                    marginBottom: 10,
+                    textTransform: 'uppercase',
+                    letterSpacing: '1px'
+                  }}>
+                    Confirm Password
+                  </label>
+                  <input
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="Re-enter password"
+                    style={{
+                      width: '100%',
+                      padding: '16px 20px',
+                      borderRadius: 12,
+                      border: `2px solid ${darkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.3)'}`,
+                      background: darkMode ? 'rgba(255, 255, 255, 0.05)' : 'rgba(255, 255, 255, 0.2)',
+                      color: '#FFFFFF',
+                      fontSize: 16,
+                      outline: 'none',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                </div>
+              )}
+
               {/* Error Message */}
               {error && (
                 <div style={{
@@ -508,6 +678,22 @@ export default function Login({ onLogin, darkMode = true, theme = {} }) {
                   animation: 'fadeIn 0.3s ease-out'
                 }}>
                   {error}
+                </div>
+              )}
+
+              {/* Info Message (e.g. thapar unlock) */}
+              {info && (
+                <div style={{
+                  padding: 12,
+                  borderRadius: 12,
+                  background: 'rgba(182, 139, 73, 0.15)',
+                  border: `1px solid ${accentColor}`,
+                  color: '#F5EDE0',
+                  fontSize: 14,
+                  marginBottom: 24,
+                  animation: 'fadeIn 0.3s ease-out'
+                }}>
+                  {info}
                 </div>
               )}
 
@@ -549,18 +735,18 @@ export default function Login({ onLogin, darkMode = true, theme = {} }) {
               >
                 {isLoading ? (
                   <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
-                    <span style={{ 
-                      width: 16, 
-                      height: 16, 
+                    <span style={{
+                      width: 16,
+                      height: 16,
                       border: '2px solid rgba(255,255,255,0.3)',
                       borderTopColor: '#fff',
                       borderRadius: '50%',
                       animation: 'spin 0.8s linear infinite'
                     }} />
-                    Authenticating...
+                    {mode === 'login' ? 'Authenticating...' : 'Creating Account...'}
                   </span>
                 ) : (
-                  'Login'
+                  mode === 'login' ? 'Login' : 'Create Account'
                 )}
               </button>
 
@@ -571,39 +757,96 @@ export default function Login({ onLogin, darkMode = true, theme = {} }) {
               `}</style>
             </form>
 
-            <div style={{ marginTop: 18, textAlign: 'right' }}>
-              <button
-                type="button"
-                onClick={() => setShowCredentials(prev => !prev)}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  color: 'rgba(245, 237, 224, 0.7)',
-                  fontSize: 12,
-                  textDecoration: 'underline',
-                  cursor: 'pointer',
-                  padding: 0,
-                  opacity: 0.8
-                }}
-              >
-                Forgot password?
-              </button>
-            </div>
-
-            {showCredentials && (
+            {/* Permanent, clearly-labelled demo access panel */}
+            <div style={{
+              marginTop: 28,
+              paddingTop: 24,
+              borderTop: '1px solid rgba(255,255,255,0.1)'
+            }}>
               <div style={{
-                marginTop: 12,
-                padding: 14,
-                borderRadius: 12,
-                background: 'rgba(182, 139, 73, 0.12)',
-                border: '1px solid rgba(182, 139, 73, 0.3)',
-                color: 'rgba(255,255,255,0.8)',
-                fontSize: 13,
-                textAlign: 'center'
+                padding: 16,
+                borderRadius: 14,
+                background: 'rgba(182, 139, 73, 0.1)',
+                border: '1px solid rgba(182, 139, 73, 0.3)'
               }}>
-                Username: admin · Password: admin
+                <p style={{ margin: '0 0 6px 0', fontSize: 13, fontWeight: 700, color: '#F5EDE0', letterSpacing: '0.5px' }}>
+                  🧪 JUST EXPLORING?
+                </p>
+                <p style={{ margin: '0 0 12px 0', fontSize: 13, color: 'rgba(245, 237, 224, 0.75)', lineHeight: 1.5 }}>
+                  Try the demo account below — no signup needed. Demo mode has <strong>no saved history</strong> and{' '}
+                  <strong>no access to the Thapar question bank</strong>. For full functionality, sign up above with
+                  a real email — a <strong>@thapar.edu</strong> address also unlocks previous-year company interview questions.
+                </p>
+
+                {!showDemoLogin ? (
+                  <button
+                    type="button"
+                    onClick={() => setShowDemoLogin(true)}
+                    style={{
+                      background: 'none',
+                      border: `1px solid ${accentColor}`,
+                      color: '#F5EDE0',
+                      fontSize: 13,
+                      fontWeight: 600,
+                      borderRadius: 8,
+                      padding: '8px 16px',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Use Demo Login (admin / admin)
+                  </button>
+                ) : (
+                  <form onSubmit={handleDemoSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    <input
+                      type="text"
+                      value={demoUsername}
+                      onChange={(e) => setDemoUsername(e.target.value)}
+                      placeholder="Demo username: admin"
+                      style={{
+                        padding: '10px 14px',
+                        borderRadius: 8,
+                        border: '1px solid rgba(255,255,255,0.15)',
+                        background: 'rgba(255,255,255,0.05)',
+                        color: '#FFFFFF',
+                        fontSize: 13,
+                        outline: 'none'
+                      }}
+                    />
+                    <input
+                      type="password"
+                      value={demoPassword}
+                      onChange={(e) => setDemoPassword(e.target.value)}
+                      placeholder="Demo password: admin"
+                      style={{
+                        padding: '10px 14px',
+                        borderRadius: 8,
+                        border: '1px solid rgba(255,255,255,0.15)',
+                        background: 'rgba(255,255,255,0.05)',
+                        color: '#FFFFFF',
+                        fontSize: 13,
+                        outline: 'none'
+                      }}
+                    />
+                    <button
+                      type="submit"
+                      disabled={isLoading}
+                      style={{
+                        padding: '10px 14px',
+                        borderRadius: 8,
+                        border: 'none',
+                        background: accentColor,
+                        color: '#fff',
+                        fontSize: 13,
+                        fontWeight: 700,
+                        cursor: isLoading ? 'not-allowed' : 'pointer'
+                      }}
+                    >
+                      Continue with Demo
+                    </button>
+                  </form>
+                )}
               </div>
-            )}
+            </div>
           </div>
         </div>
       </div>

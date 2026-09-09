@@ -22,6 +22,12 @@ from sentiment_emotion_analyzer import (
 app = Flask(__name__)
 CORS(app)
 
+from auth import auth_bp, init_auth
+from thapar_routes import thapar_bp, init_thapar
+
+app.register_blueprint(auth_bp)
+app.register_blueprint(thapar_bp)
+
 # Initialize sentiment and emotion analyzers
 sentiment_analyzer = SentimentAnalyzer()
 emotion_analyzer = FacialExpressionAnalyzer()
@@ -159,11 +165,16 @@ try:
     
     db_connection.commit()
     print("✅ Database tables created successfully")
-    
+
 except Exception as e:
     print(f"❌ Database setup error: {e}")
     db_connection = None
     db_cursor = None
+
+# Wire up auth (users table) and the Thapar question bank (seeded from
+# data/thapar_questions.json) using whatever DB connection we ended up with.
+init_auth(db_connection, db_cursor)
+init_thapar(db_connection, db_cursor)
 
 # Create upload folder if it doesn't exist
 UPLOAD_FOLDER = './Uploaded_Resumes'

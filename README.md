@@ -108,18 +108,7 @@ Use Chrome or Edge. Transcription relies on the browser's native speech recognit
 
 Honest notes on what is and is not finished:
 
-- The login is a demo gate, not authentication. Credentials are checked in the browser and there is no user model behind it.
+- Real signup/login now exists (bcrypt-hashed passwords, JWT sessions) alongside a demo `admin`/`admin` gate for quick exploration. A `@thapar.edu` signup email unlocks the previous-year question-matching feature.
 - CORS is open. Fine for a demo deployment, not for anything real.
 - Recorded audio is stored but never transcribed server-side; transcription is entirely the browser's.
 - `Smart_Resume_Analyser_App-master/` also contains the Streamlit resume-analyser this project was scaffolded from. It is not deployed, not reachable from the app, and is due for removal.
-
----
-
-## Team
-
-Built for a Software Engineering course project by
-[visheshgarg06](https://github.com/visheshgarg06),
-[himayattiwana](https://github.com/himayattiwana),
-[siyakhosla](https://github.com/siyakhosla),
-[tnishagarg](https://github.com/tnishagarg) and
-[vanshikasaini2027](https://github.com/vanshikasaini2027).

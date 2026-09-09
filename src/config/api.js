@@ -9,7 +9,11 @@ export default {
     CREATE_SESSION: `${API_BASE_URL}/api/create-session`,
     SAVE_ANSWER: `${API_BASE_URL}/api/save-answer`,
     ANALYZE_ANSWER: `${API_BASE_URL}/api/analyze-answer`,
-    GET_SESSION_REPORT: (sessionId) => `${API_BASE_URL}/api/get-session-report/${sessionId}`
+    GET_SESSION_REPORT: (sessionId) => `${API_BASE_URL}/api/get-session-report/${sessionId}`,
+    SIGNUP: `${API_BASE_URL}/api/auth/signup`,
+    LOGIN: `${API_BASE_URL}/api/auth/login`,
+    ME: `${API_BASE_URL}/api/auth/me`,
+    THAPAR_MATCH_QUESTIONS: `${API_BASE_URL}/api/thapar/match-questions`
   }
 };
 

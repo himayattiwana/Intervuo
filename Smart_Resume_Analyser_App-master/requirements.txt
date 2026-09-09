@@ -13,6 +13,8 @@ pdfminer
 spacy==2.3.5
 flask
 flask-cors
+bcrypt
+PyJWT
 google-generativeai
 PyPDF2
 # Emotion detection - using OpenCV (no TensorFlow/pandas compatibility issues)
