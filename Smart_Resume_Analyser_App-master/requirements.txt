@@ -1,16 +1,6 @@
-pdfminer
-pyresparser
-streamlit
-pandas
-pafy
-plotly
+pdfminer.six
 pymysql
-streamlit-tags
 Pillow
-youtube-dl
-nltk
-pdfminer
-spacy==2.3.5
 flask
 flask-cors
 bcrypt

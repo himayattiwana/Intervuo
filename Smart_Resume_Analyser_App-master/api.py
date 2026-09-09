@@ -20,7 +20,15 @@ from sentiment_emotion_analyzer import (
 )
 
 app = Flask(__name__)
-CORS(app)
+
+# Only the real frontend origins may call this API. Override/extend via the
+# ALLOWED_ORIGINS env var (comma-separated) if you deploy the frontend
+# somewhere else — an empty CORS(app) would let any site call these routes.
+_default_origins = 'https://intervuo.netlify.app,http://localhost:5173,http://127.0.0.1:5173'
+_allowed_origins = [
+    o.strip() for o in os.environ.get('ALLOWED_ORIGINS', _default_origins).split(',') if o.strip()
+]
+CORS(app, origins=_allowed_origins, supports_credentials=True)
 
 from auth import auth_bp, init_auth
 from thapar_routes import thapar_bp, init_thapar
