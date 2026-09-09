@@ -13,7 +13,8 @@ export default {
     SIGNUP: `${API_BASE_URL}/api/auth/signup`,
     LOGIN: `${API_BASE_URL}/api/auth/login`,
     ME: `${API_BASE_URL}/api/auth/me`,
-    THAPAR_MATCH_QUESTIONS: `${API_BASE_URL}/api/thapar/match-questions`
+    THAPAR_MATCH_QUESTIONS: `${API_BASE_URL}/api/thapar/match-questions`,
+    ANALYZE_FACIAL_EXPRESSIONS: `${API_BASE_URL}/api/analyze-facial-expressions`
   }
 };
 

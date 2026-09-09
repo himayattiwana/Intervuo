@@ -3,6 +3,19 @@ import SpeechRecognition, { useSpeechRecognition } from 'react-speech-recognitio
 import * as blazeface from '@tensorflow-models/blazeface'
 import * as tf from '@tensorflow/tfjs-core'
 import '@tensorflow/tfjs-backend-webgl'
+import API from '../config/api'
+
+// Live emotion badge styling: dominant_emotion / interview_state -> a
+// traffic-light color plus a short, encouraging live tip. Kept as real
+// green/amber/red/blue rather than the app's muted theme palette so the
+// signal reads instantly at a glance while the candidate is mid-answer.
+const EMOTION_PRESENTATION = {
+  confident: { emoji: '😊', label: 'Confident', color: '#22c55e', tip: "You're doing great — keep it up!" },
+  calm: { emoji: '🙂', label: 'Calm', color: '#eab308', tip: 'Looking composed. A small smile helps too.' },
+  neutral: { emoji: '😐', label: 'Neutral', color: '#eab308', tip: 'Try to show a bit more energy or a smile.' },
+  hesitant: { emoji: '😯', label: 'Hesitant', color: '#3b82f6', tip: 'Take a breath — you can pause before answering.' },
+  nervous: { emoji: '😟', label: 'Nervous', color: '#ef4444', tip: 'Relax your shoulders and smile — you’ve got this.' },
+}
 
 export default function Interviewer({ 
   question="",
@@ -19,6 +32,9 @@ export default function Interviewer({
   const [elapsedTime, setElapsedTime] = useState(0)
   const [cropFaceOnly, setCropFaceOnly] = useState(false)
   const [faceDetectionAvailable, setFaceDetectionAvailable] = useState(false)
+  const [liveEmotion, setLiveEmotion] = useState(null) // { dominant_emotion, interview_state, confidence_level }
+  const liveEmotionBusyRef = useRef(false)
+  const liveEmotionIntervalRef = useRef(null)
   const mediaRef = useRef(null)
   const recorderRef = useRef(null)
   const chunksRef = useRef([])
@@ -314,6 +330,54 @@ export default function Interviewer({
     }
   }
 
+  // Live emotion feedback: separate from the frames captured for the final
+  // answer submission — this polls a small, low-quality frame in the
+  // background and just updates the on-screen badge, so it never touches
+  // capturedFramesRef (what actually gets scored/saved).
+  const pollLiveEmotion = async () => {
+    if (liveEmotionBusyRef.current) return
+    if (!mediaRef.current || mediaRef.current.readyState !== 4) return
+
+    liveEmotionBusyRef.current = true
+    try {
+      const canvas = document.createElement('canvas')
+      canvas.width = mediaRef.current.videoWidth || 640
+      canvas.height = mediaRef.current.videoHeight || 480
+      const ctx = canvas.getContext('2d')
+      ctx.drawImage(mediaRef.current, 0, 0, canvas.width, canvas.height)
+      const workingCanvas = cropFaceOnlyRef.current ? await cropCanvasToFace(canvas) : canvas
+      const base64Image = workingCanvas.toDataURL('image/jpeg', 0.6)
+
+      const response = await fetch(API.ENDPOINTS.ANALYZE_FACIAL_EXPRESSIONS, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ frames: [base64Image] })
+      })
+      const data = await response.json()
+      if (data.emotion_data) {
+        setLiveEmotion(data.emotion_data)
+      }
+    } catch (err) {
+      console.warn('Live emotion check failed:', err)
+    } finally {
+      liveEmotionBusyRef.current = false
+    }
+  }
+
+  // Runs the whole time the camera feed is up (not just while recording an
+  // answer), per the ask: live feedback the candidate can react to.
+  useEffect(() => {
+    liveEmotionIntervalRef.current = setInterval(() => {
+      pollLiveEmotion()
+    }, 2500)
+    return () => {
+      if (liveEmotionIntervalRef.current) {
+        clearInterval(liveEmotionIntervalRef.current)
+        liveEmotionIntervalRef.current = null
+      }
+    }
+  }, [])
+
   const startRec = async () => {
     const stream = mediaRef.current?.srcObject
     if (!stream) {
@@ -509,6 +573,37 @@ export default function Interviewer({
                 Cropping enabled
               </div>
             )}
+            {liveEmotion && (() => {
+              const presentation = EMOTION_PRESENTATION[liveEmotion.interview_state] || EMOTION_PRESENTATION.neutral
+              return (
+                <div style={{
+                  position: 'absolute',
+                  top: 16,
+                  left: 16,
+                  maxWidth: 260,
+                  padding: '10px 14px',
+                  borderRadius: 12,
+                  background: 'rgba(0,0,0,0.72)',
+                  border: `2px solid ${presentation.color}`,
+                  color: '#fff',
+                  boxShadow: `0 0 16px ${presentation.color}55`,
+                  transition: 'border-color 0.3s ease, box-shadow 0.3s ease'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontSize: 18 }}>{presentation.emoji}</span>
+                    <span style={{ fontWeight: 700, fontSize: 14, color: presentation.color }}>
+                      {presentation.label}
+                    </span>
+                    {liveEmotion.confidence_level === 'low' && (
+                      <span style={{ fontSize: 10, opacity: 0.6 }}>(uncertain)</span>
+                    )}
+                  </div>
+                  <div style={{ fontSize: 11, marginTop: 4, opacity: 0.85, lineHeight: 1.4 }}>
+                    {presentation.tip}
+                  </div>
+                </div>
+              )
+            })()}
           </div>
           <div style={{
             display: 'flex',
