@@ -22,4 +22,17 @@ def ensure_alive(connection):
     try:
         connection.ping(reconnect=True)
     except Exception as e:
-        print(f"⚠️  DB reconnect failed: {e}")
+        print(f"⚠️  DB ping failed: {e}")
+
+    # Belt-and-braces: on some proxied MySQL hosts (seen with Clever Cloud's
+    # connection proxy) ping(reconnect=True) can return without raising yet
+    # still leave the socket closed, so the next query fails with a bare
+    # pymysql.err.InterfaceError(0, ''). If the socket is still gone after
+    # ping, force an explicit reconnect using the connection's own stored
+    # credentials.
+    if getattr(connection, '_sock', None) is None:
+        try:
+            connection.connect()
+            print("✅ DB connection re-established")
+        except Exception as e:
+            print(f"❌ DB reconnect failed: {e}")
