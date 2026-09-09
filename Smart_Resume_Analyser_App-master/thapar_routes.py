@@ -22,6 +22,7 @@ from flask import Blueprint, request, jsonify, g
 
 from auth import require_auth, require_thapar
 from question_matcher import QuestionMatcher
+from db_utils import ensure_alive
 
 thapar_bp = Blueprint('thapar', __name__, url_prefix='/api/thapar')
 
@@ -113,6 +114,7 @@ def _load_matcher():
 def stats():
     if not _db_connection or not _db_cursor:
         return jsonify({'error': 'Database not available'}), 500
+    ensure_alive(_db_connection)
     _db_cursor.execute(
         "SELECT category, question_type, COUNT(*) FROM question_bank GROUP BY category, question_type"
     )

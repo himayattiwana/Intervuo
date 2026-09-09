@@ -10,9 +10,10 @@ import google.generativeai as genai
 from config import GEMINI_API_KEY, NUM_QUESTIONS, DIFFICULTY_MAPPING, GEMINI_MODEL, TEMPERATURE
 import uuid
 from datetime import datetime
+from db_utils import ensure_alive
 from sentiment_emotion_analyzer import (
-    SentimentAnalyzer, 
-    FacialExpressionAnalyzer, 
+    SentimentAnalyzer,
+    FacialExpressionAnalyzer,
     calculate_combined_score,
     TEXTBLOB_AVAILABLE,
     VADER_AVAILABLE,
@@ -707,8 +708,9 @@ def create_session():
         session_id = str(uuid.uuid4())
         
         print(f"📝 Creating session with data: {data}")
-        
+
         if db_cursor and db_connection:
+            ensure_alive(db_connection)
             insert_sql = """
             INSERT INTO interview_sessions (session_id, user_name, user_email, resume_field, experience_level)
             VALUES (%s, %s, %s, %s, %s)
@@ -757,8 +759,9 @@ def save_answer():
         emotion_data_json = request.form.get('emotion_data')
         
         print(f"📥 Received save request - Session: {session_id}, Q: {question_number}")
-        
+
         if db_cursor and db_connection:
+            ensure_alive(db_connection)
             check_sql = "SELECT session_id FROM interview_sessions WHERE session_id = %s"
             db_cursor.execute(check_sql, (session_id,))
             session_exists = db_cursor.fetchone()
@@ -848,6 +851,7 @@ def get_session_report(session_id):
     try:
         import json
         if db_cursor and db_connection:
+            ensure_alive(db_connection)
             # Get session info
             session_query = """
             SELECT user_name, user_email, resume_field, experience_level, created_at
@@ -956,6 +960,7 @@ def get_session_answers(session_id):
     """Get all answers for a session"""
     try:
         if db_cursor:
+            ensure_alive(db_connection)
             query = """
             SELECT question_number, question_text, answer_text, answered_at
             FROM interview_answers

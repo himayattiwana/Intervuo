@@ -22,6 +22,7 @@ from functools import wraps
 from flask import Blueprint, request, jsonify, g
 
 from config import JWT_SECRET, JWT_EXPIRY_HOURS, THAPAR_EMAIL_DOMAIN
+from db_utils import ensure_alive
 
 auth_bp = Blueprint('auth', __name__, url_prefix='/api/auth')
 
@@ -122,6 +123,7 @@ def require_thapar(f):
 def signup():
     if not _db_connection or not _db_cursor:
         return jsonify({'error': 'Database not available'}), 500
+    ensure_alive(_db_connection)
 
     data = request.get_json(silent=True) or {}
     name = (data.get('name') or '').strip()
@@ -165,6 +167,7 @@ def signup():
 def login():
     if not _db_connection or not _db_cursor:
         return jsonify({'error': 'Database not available'}), 500
+    ensure_alive(_db_connection)
 
     data = request.get_json(silent=True) or {}
     email = (data.get('email') or '').strip().lower()
