@@ -402,6 +402,33 @@ export default function Interviewer({
     return cropped
   }
 
+  // Same tight-crop logic as cropCanvasToFace, but also reports whether a
+  // real face box was found this frame (vs. falling back to a blind center
+  // crop) — the live-emotion poll needs to know this so it can tell the
+  // backend "this is already a tight face crop, don't re-detect/re-crop it".
+  const cropCanvasToFaceWithStatus = async (canvas) => {
+    let box = await detectFaceBoxOnCanvas(canvas)
+    if (!box && lastFaceBoxRef.current) {
+      box = lastFaceBoxRef.current
+    }
+    if (!box) {
+      return { canvas: cropToCenteredRegion(canvas), cropped: false }
+    }
+    const pad = Math.max(box.width, box.height) * 0.35
+    const sx = Math.max(0, Math.floor(box.x - pad))
+    const sy = Math.max(0, Math.floor(box.y - pad))
+    const ex = Math.min(canvas.width, Math.ceil(box.x + box.width + pad))
+    const ey = Math.min(canvas.height, Math.ceil(box.y + box.height + pad))
+    const sw = Math.max(1, ex - sx)
+    const sh = Math.max(1, ey - sy)
+    const cropped = document.createElement('canvas')
+    cropped.width = 320
+    cropped.height = 320
+    const ctx = cropped.getContext('2d')
+    ctx.drawImage(canvas, sx, sy, sw, sh, 0, 0, cropped.width, cropped.height)
+    return { canvas: cropped, cropped: true }
+  }
+
   const captureFrame = async () => {
     if (mediaRef.current && mediaRef.current.readyState === 4) {
       try {
@@ -446,15 +473,25 @@ export default function Interviewer({
       ctx.drawImage(mediaRef.current, 0, 0, canvas.width, canvas.height)
       // Always send a tight face crop for the live poll (regardless of the
       // "crop for analysis" checkbox, which only governs the frames saved
-      // for the final report) — a close-up face gives the backend's own
-      // detector a much better hit rate than a full-body/room frame.
-      const workingCanvas = detectorTypeRef.current !== 'none' ? await cropCanvasToFace(canvas) : canvas
-      const base64Image = workingCanvas.toDataURL('image/jpeg', 0.7)
+      // for the final report) — a close-up face gives a much stronger,
+      // less ambiguous signal to the emotion model than a full-body/room
+      // frame. When we found a real face box, tell the backend so it
+      // doesn't re-detect/re-crop an already-tight crop (which was cutting
+      // the mouth off and making everything read as "neutral").
+      let base64Image, alreadyCropped
+      if (detectorTypeRef.current !== 'none') {
+        const result = await cropCanvasToFaceWithStatus(canvas)
+        base64Image = result.canvas.toDataURL('image/jpeg', 0.7)
+        alreadyCropped = result.cropped
+      } else {
+        base64Image = canvas.toDataURL('image/jpeg', 0.7)
+        alreadyCropped = false
+      }
 
       const response = await fetch(API.ENDPOINTS.ANALYZE_FACIAL_EXPRESSIONS, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ frames: [base64Image] })
+        body: JSON.stringify({ frames: [base64Image], already_cropped: alreadyCropped })
       })
       const data = await response.json()
       if (data.emotion_data) {

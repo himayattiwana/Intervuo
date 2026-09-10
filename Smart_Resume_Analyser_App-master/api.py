@@ -1161,13 +1161,14 @@ def analyze_facial_expressions():
     try:
         data = request.json
         frames = data.get('frames', [])  # List of base64 encoded images
-        
+        already_cropped = bool(data.get('already_cropped', False))
+
         if not frames:
             return jsonify({"error": "No frames provided"}), 400
-        
+
         print(f"😊 Analyzing {len(frames)} video frames...")
-        
-        emotion_data = emotion_analyzer.analyze_video_frames(frames)
+
+        emotion_data = emotion_analyzer.analyze_video_frames(frames, already_cropped=already_cropped)
         
         return jsonify({
             "success": True,

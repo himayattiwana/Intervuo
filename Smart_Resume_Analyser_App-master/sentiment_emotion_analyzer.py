@@ -534,9 +534,18 @@ class FacialExpressionAnalyzer:
         total = np.sum(exps)
         return exps / total if total > 0 else np.ones_like(exps) / len(exps)
     
-    def analyze_facial_expressions(self, image_data: str) -> Dict:
+    def analyze_facial_expressions(self, image_data: str, already_cropped: bool = False) -> Dict:
         """
-        Analyze facial expressions from base64 encoded image
+        Analyze facial expressions from base64 encoded image.
+
+        `already_cropped` means the caller (the browser, using its own
+        on-device face detector) already cropped the image tightly to the
+        face before sending it — in that case we skip our own detection
+        entirely and analyze the full image as-is. Re-detecting + re-cropping
+        an already tight face crop was clipping the mouth/chin off frames
+        (a smile would get cut out entirely), which is why the live badge
+        looked stuck on neutral no matter the expression.
+
         Returns: {
             'emotions': {emotion: confidence},
             'dominant_emotion': str,
@@ -549,25 +558,20 @@ class FacialExpressionAnalyzer:
         if img_array is None:
             print("⚠️ Failed to decode image")
             return self._default_emotion()
-        
-        # Detect face
-        face_rect = self._detect_face(img_array)
-        if face_rect is not None:
-            x, y, w, h = face_rect
-            face_roi = img_array[y:y+h, x:x+w]
+
+        if already_cropped:
+            face_roi = img_array
         else:
-            # Detection missed this frame (bad angle/lighting/compression).
-            # Don't silently collapse to a hardcoded "neutral" every time —
-            # fall back to a centered crop of the frame itself and keep
-            # analyzing, so the badge still reacts instead of freezing.
-            print("⚠️ No face detected in image — falling back to center-crop analysis")
-            ih, iw = img_array.shape[:2]
-            size = int(min(ih, iw) * 0.7)
-            cx, cy = iw // 2, int(ih * 0.45)
-            x0 = max(0, cx - size // 2)
-            y0 = max(0, cy - size // 2)
-            face_roi = img_array[y0:y0 + size, x0:x0 + size]
-            if face_roi.size == 0:
+            # Detect face
+            face_rect = self._detect_face(img_array)
+            if face_rect is not None:
+                x, y, w, h = face_rect
+                face_roi = img_array[y:y+h, x:x+w]
+            else:
+                # Detection missed this frame (bad angle/lighting/compression).
+                # Don't silently collapse to a hardcoded "neutral" every time —
+                # analyze the full frame itself rather than freezing the badge.
+                print("⚠️ No face detected in image — analyzing full frame")
                 face_roi = img_array
         
         # Analyze emotion using FER+ model when available, fallback to heuristics
@@ -682,22 +686,22 @@ class FacialExpressionAnalyzer:
             'detection_method': 'default'
         }
     
-    def analyze_video_frames(self, frames_data: List[str]) -> Dict:
+    def analyze_video_frames(self, frames_data: List[str], already_cropped: bool = False) -> Dict:
         """
         Analyze multiple video frames and aggregate results
         """
         if not frames_data:
             return self._default_emotion()
-        
+
         print(f"🔍 Analyzing {len(frames_data)} video frames...")
-        
+
         all_emotions = []
         successful_frames = 0
-        
+
         for i, frame_data in enumerate(frames_data):
             print(f"  Frame {i+1}/{len(frames_data)}...")
             try:
-                result = self.analyze_facial_expressions(frame_data)
+                result = self.analyze_facial_expressions(frame_data, already_cropped=already_cropped)
                 if result and result.get('emotions'):
                     all_emotions.append(result['emotions'])
                     successful_frames += 1
