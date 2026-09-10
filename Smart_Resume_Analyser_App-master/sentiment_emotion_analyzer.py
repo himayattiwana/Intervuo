@@ -363,17 +363,27 @@ class FacialExpressionAnalyzer:
             return None
         
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        faces = self.face_cascade.detectMultiScale(
-            gray,
-            scaleFactor=1.1,
-            minNeighbors=5,
-            minSize=(30, 30)
-        )
-        
-        if len(faces) > 0:
-            # Return the largest face
-            largest_face = max(faces, key=lambda f: f[2] * f[3])
-            return tuple(largest_face)
+        gray = cv2.equalizeHist(gray)  # normalize webcam exposure/lighting before detecting
+
+        # Try a stricter pass first, then progressively looser passes — a
+        # single fixed threshold missed a lot of real faces (compressed,
+        # off-angle, or badly lit webcam frames), which was silently falling
+        # through to the neutral-only default every time.
+        for scale_factor, min_neighbors, min_size in (
+            (1.1, 5, (60, 60)),
+            (1.1, 3, (40, 40)),
+            (1.05, 3, (30, 30)),
+        ):
+            faces = self.face_cascade.detectMultiScale(
+                gray,
+                scaleFactor=scale_factor,
+                minNeighbors=min_neighbors,
+                minSize=min_size
+            )
+            if len(faces) > 0:
+                # Return the largest face
+                largest_face = max(faces, key=lambda f: f[2] * f[3])
+                return tuple(largest_face)
         return None
     
     def _analyze_emotion_simple(self, face_roi: np.ndarray) -> Dict[str, float]:
@@ -390,13 +400,13 @@ class FacialExpressionAnalyzer:
         
         # Initialize emotion scores
         emotions = {
-            'neutral': 0.25,
-            'happy': 0.15,
-            'sad': 0.15,
-            'angry': 0.15,
-            'fear': 0.1,
-            'surprise': 0.1,
-            'disgust': 0.1
+            'neutral': 0.16,
+            'happy': 0.16,
+            'sad': 0.16,
+            'angry': 0.14,
+            'fear': 0.12,
+            'surprise': 0.14,
+            'disgust': 0.12
         }
         
         # Analyze face regions
@@ -429,9 +439,9 @@ class FacialExpressionAnalyzer:
         
         # 1. Happy: Mouth area brighter (smile), eyes may be slightly closed
         mouth_brightness_ratio = mouth_mean / mean_intensity
-        if mouth_brightness_ratio > 1.15:  # Bright mouth (smile)
-            emotions['happy'] += 0.5
-            emotions['neutral'] -= 0.2
+        if mouth_brightness_ratio > 1.08:  # Bright mouth (smile) — teeth/wider mouth catch more light
+            emotions['happy'] += 0.55
+            emotions['neutral'] -= 0.25
             emotions['sad'] -= 0.15
         elif mouth_brightness_ratio < 0.85:  # Dark mouth (frown)
             emotions['sad'] += 0.4
@@ -542,12 +552,23 @@ class FacialExpressionAnalyzer:
         
         # Detect face
         face_rect = self._detect_face(img_array)
-        if face_rect is None:
-            print("⚠️ No face detected in image")
-            return self._default_emotion()
-        
-        x, y, w, h = face_rect
-        face_roi = img_array[y:y+h, x:x+w]
+        if face_rect is not None:
+            x, y, w, h = face_rect
+            face_roi = img_array[y:y+h, x:x+w]
+        else:
+            # Detection missed this frame (bad angle/lighting/compression).
+            # Don't silently collapse to a hardcoded "neutral" every time —
+            # fall back to a centered crop of the frame itself and keep
+            # analyzing, so the badge still reacts instead of freezing.
+            print("⚠️ No face detected in image — falling back to center-crop analysis")
+            ih, iw = img_array.shape[:2]
+            size = int(min(ih, iw) * 0.7)
+            cx, cy = iw // 2, int(ih * 0.45)
+            x0 = max(0, cx - size // 2)
+            y0 = max(0, cy - size // 2)
+            face_roi = img_array[y0:y0 + size, x0:x0 + size]
+            if face_roi.size == 0:
+                face_roi = img_array
         
         # Analyze emotion using FER+ model when available, fallback to heuristics
         detection_method = 'OpenCV (heuristic)'

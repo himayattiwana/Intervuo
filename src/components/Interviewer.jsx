@@ -56,6 +56,7 @@ export default function Interviewer({
   const lastFaceBoxRef = useRef(null)
   const cropFaceOnlyRef = useRef(cropFaceOnly)
   const previewCanvasRef = useRef(null)
+  const faceBoxCanvasRef = useRef(null)
 
   const {
     transcript,
@@ -253,6 +254,83 @@ export default function Interviewer({
     }
   }, [])
 
+  // Draws (or clears) a square tracking box on the overlay canvas, mapping
+  // the detected box from the video's native pixel space into the box the
+  // <video> actually renders at (accounting for objectFit: cover, which
+  // scales+crops the native frame to fill the element).
+  const drawFaceBox = (box) => {
+    const canvasEl = faceBoxCanvasRef.current
+    const video = mediaRef.current
+    if (!canvasEl || !video) return
+    const container = canvasEl.parentElement
+    const cw = container ? container.clientWidth : canvasEl.width
+    const ch = container ? container.clientHeight : canvasEl.height
+    if (canvasEl.width !== cw) canvasEl.width = cw
+    if (canvasEl.height !== ch) canvasEl.height = ch
+    const ctx = canvasEl.getContext('2d')
+    ctx.clearRect(0, 0, cw, ch)
+    if (!box) return
+
+    const vw = video.videoWidth || 640
+    const vh = video.videoHeight || 480
+    const scale = Math.max(cw / vw, ch / vh)
+    const offsetX = (cw - vw * scale) / 2
+    const offsetY = (ch - vh * scale) / 2
+
+    // Make it a true square, sized off the larger side, centered on the box.
+    const side = Math.max(box.width, box.height) * 1.25
+    const cx = box.x + box.width / 2
+    const cy = box.y + box.height / 2
+    const sx = offsetX + (cx - side / 2) * scale
+    const sy = offsetY + (cy - side / 2) * scale
+    const ssize = side * scale
+
+    ctx.strokeStyle = '#22c55e'
+    ctx.lineWidth = 3
+    ctx.shadowColor = '#22c55e'
+    ctx.shadowBlur = 10
+    ctx.strokeRect(sx, sy, ssize, ssize)
+  }
+
+  // Continuously tracks the face with a square box overlay on the live
+  // video, independent of the "crop for analysis" option.
+  useEffect(() => {
+    let cancelled = false
+    let rafId = null
+    let lastDetect = 0
+    const DETECTION_INTERVAL = 350
+
+    const loop = async () => {
+      if (cancelled) return
+      const video = mediaRef.current
+      if (!video || video.readyState < 2 || cropFaceOnlyRef.current) {
+        rafId = requestAnimationFrame(loop)
+        return
+      }
+      const now = Date.now()
+      if (now - lastDetect > DETECTION_INTERVAL && detectorTypeRef.current !== 'none') {
+        lastDetect = now
+        try {
+          const tmp = document.createElement('canvas')
+          tmp.width = video.videoWidth || 640
+          tmp.height = video.videoHeight || 480
+          tmp.getContext('2d').drawImage(video, 0, 0, tmp.width, tmp.height)
+          const box = await detectFaceBoxOnCanvas(tmp)
+          if (!cancelled) drawFaceBox(box || lastFaceBoxRef.current)
+        } catch (err) {
+          console.warn('Face tracking error:', err)
+        }
+      }
+      if (!cancelled) rafId = requestAnimationFrame(loop)
+    }
+    loop()
+
+    return () => {
+      cancelled = true
+      if (rafId) cancelAnimationFrame(rafId)
+    }
+  }, [])
+
   const cropToCenteredRegion = (canvas) => {
     const size = Math.min(canvas.width, canvas.height)
     const sx = Math.max(0, Math.floor((canvas.width - size) / 2))
@@ -265,14 +343,17 @@ export default function Interviewer({
     return cropped
   }
 
-  const cropCanvasToFace = async (canvas) => {
+  // Runs whichever face detector loaded (native FaceDetector or BlazeFace)
+  // on a canvas and returns a raw {x,y,width,height} box in that canvas's
+  // pixel space, or null if nothing was found this frame. Shared by the
+  // crop-to-face preview, the live-emotion poll, and the tracking overlay.
+  const detectFaceBoxOnCanvas = async (canvas) => {
     let box = null
     if (detectorTypeRef.current === 'native' && faceDetectorRef.current) {
       try {
         const faces = await faceDetectorRef.current.detect(canvas)
         if (faces && faces.length) {
           box = faces[0].boundingBox || faces[0]
-          lastFaceBoxRef.current = box
         }
       } catch (err) {
         console.warn('Face detection failed:', err)
@@ -287,12 +368,19 @@ export default function Interviewer({
           const [x1, y1] = Array.isArray(topLeft) ? topLeft : [topLeft[0], topLeft[1]]
           const [x2, y2] = Array.isArray(bottomRight) ? bottomRight : [bottomRight[0], bottomRight[1]]
           box = { x: x1, y: y1, width: x2 - x1, height: y2 - y1 }
-          lastFaceBoxRef.current = box
         }
       } catch (err) {
         console.warn('BlazeFace detection failed:', err)
       }
     }
+    if (box) {
+      lastFaceBoxRef.current = box
+    }
+    return box
+  }
+
+  const cropCanvasToFace = async (canvas) => {
+    let box = await detectFaceBoxOnCanvas(canvas)
     if (!box && lastFaceBoxRef.current) {
       box = lastFaceBoxRef.current
     }
@@ -356,8 +444,12 @@ export default function Interviewer({
       canvas.height = mediaRef.current.videoHeight || 480
       const ctx = canvas.getContext('2d')
       ctx.drawImage(mediaRef.current, 0, 0, canvas.width, canvas.height)
-      const workingCanvas = cropFaceOnlyRef.current ? await cropCanvasToFace(canvas) : canvas
-      const base64Image = workingCanvas.toDataURL('image/jpeg', 0.6)
+      // Always send a tight face crop for the live poll (regardless of the
+      // "crop for analysis" checkbox, which only governs the frames saved
+      // for the final report) — a close-up face gives the backend's own
+      // detector a much better hit rate than a full-body/room frame.
+      const workingCanvas = detectorTypeRef.current !== 'none' ? await cropCanvasToFace(canvas) : canvas
+      const base64Image = workingCanvas.toDataURL('image/jpeg', 0.7)
 
       const response = await fetch(API.ENDPOINTS.ANALYZE_FACIAL_EXPRESSIONS, {
         method: 'POST',
@@ -570,6 +662,20 @@ export default function Interviewer({
                 zIndex: 1
               }}
             />
+            {!cropFaceOnly && (
+              <canvas
+                ref={faceBoxCanvasRef}
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  width: '100%',
+                  height: '100%',
+                  pointerEvents: 'none',
+                  zIndex: 2
+                }}
+              />
+            )}
             {cropFaceOnly && (
               <div style={{
                 position: 'absolute',
