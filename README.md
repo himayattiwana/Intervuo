@@ -111,4 +111,3 @@ Honest notes on what is and is not finished:
 - Real signup/login now exists (bcrypt-hashed passwords, JWT sessions) alongside a demo `admin`/`admin` gate for quick exploration. A `@thapar.edu` signup email unlocks the previous-year question-matching feature.
 - CORS is open. Fine for a demo deployment, not for anything real.
 - Recorded audio is stored but never transcribed server-side; transcription is entirely the browser's.
-- `Smart_Resume_Analyser_App-master/` also contains the Streamlit resume-analyser this project was scaffolded from. It is not deployed, not reachable from the app, and is due for removal.
