@@ -501,9 +501,14 @@ class FacialExpressionAnalyzer:
         try:
             gray = cv2.cvtColor(face_roi, cv2.COLOR_BGR2GRAY)
             resized = cv2.resize(gray, (64, 64))
-            normalized = resized.astype(np.float32) / 255.0
-            normalized = (normalized - 0.5) / 0.5  # scale to roughly -1..1
-            tensor = normalized.reshape(1, 1, 64, 64)
+            # The published FER+ (emotion-ferplus-8) ONNX model was trained
+            # on raw, UNnormalized pixel values (0..255 as float32) — scaling
+            # to -1..1 like a typical CNN preprocessing pipeline pushed every
+            # input out of the distribution it was trained on, so the model
+            # just emitted close to the same near-constant output regardless
+            # of the actual image (which is exactly what was happening: the
+            # live badge read ~74% neutral no matter the real expression).
+            tensor = resized.astype(np.float32).reshape(1, 1, 64, 64)
             
             outputs = self.emotion_model_session.run(
                 None,

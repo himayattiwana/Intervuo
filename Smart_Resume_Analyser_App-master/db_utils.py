@@ -16,9 +16,15 @@ is already fine and self-healing when it isn't.
 """
 
 
-def ensure_alive(connection):
+import os
+
+
+def ensure_alive(connection, db_name=None):
     if connection is None:
         return
+    if db_name is None:
+        db_name = os.environ.get('DB_NAME', 'sra')
+    was_dead = getattr(connection, '_sock', None) is None
     try:
         connection.ping(reconnect=True)
     except Exception as e:
@@ -33,6 +39,21 @@ def ensure_alive(connection):
     if getattr(connection, '_sock', None) is None:
         try:
             connection.connect()
+            was_dead = True
             print("✅ DB connection re-established")
         except Exception as e:
             print(f"❌ DB reconnect failed: {e}")
+            return
+
+    # The app connects with pymysql.connect(...) and only selects the
+    # database afterwards via connection.select_db(DB_NAME) — that "USE db"
+    # context does NOT automatically survive a reconnect (whether pymysql's
+    # own ping(reconnect=True) did it, or the explicit connect() above), so
+    # a freshly reconnected socket lands with no database selected and the
+    # next query fails with (1046, 'No database selected'). Re-select it
+    # explicitly whenever we know (or suspect) a reconnect just happened.
+    if was_dead and db_name:
+        try:
+            connection.select_db(db_name)
+        except Exception as e:
+            print(f"❌ Failed to re-select database after reconnect: {e}")
