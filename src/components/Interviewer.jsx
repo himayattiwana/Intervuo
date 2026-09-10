@@ -43,6 +43,8 @@ export default function Interviewer({
   const [faceDetectionAvailable, setFaceDetectionAvailable] = useState(false)
   const [liveEmotion, setLiveEmotion] = useState(null) // { dominant_emotion, interview_state, confidence_level }
   const liveEmotionBusyRef = useRef(false)
+  const lastNonNeutralAtRef = useRef(0)
+  const HOLD_NON_NEUTRAL_MS = 4000
   const liveEmotionIntervalRef = useRef(null)
   const mediaRef = useRef(null)
   const recorderRef = useRef(null)
@@ -495,7 +497,18 @@ export default function Interviewer({
       })
       const data = await response.json()
       if (data.emotion_data) {
-        setLiveEmotion(data.emotion_data)
+        const incoming = data.emotion_data
+        const now = Date.now()
+        if (incoming.dominant_emotion && incoming.dominant_emotion !== 'neutral') {
+          lastNonNeutralAtRef.current = now
+          setLiveEmotion(incoming)
+        } else if (now - lastNonNeutralAtRef.current < HOLD_NON_NEUTRAL_MS) {
+          // A real expression was just seen — don't let a single "neutral"
+          // frame (a blink between polls, brief relaxed jaw, etc.) snap the
+          // badge back instantly; hold the last expression briefly instead.
+        } else {
+          setLiveEmotion(incoming)
+        }
       }
     } catch (err) {
       console.warn('Live emotion check failed:', err)

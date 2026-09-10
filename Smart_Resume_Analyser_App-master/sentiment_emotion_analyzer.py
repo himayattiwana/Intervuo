@@ -63,6 +63,33 @@ FERPLUS_TO_APP_LABEL = {
 }
 MODELS_DIR = Path(__file__).resolve().parent / "models"
 
+# FER+ (like most public facial-emotion datasets) was trained on a strong
+# "neutral" majority — real webcam faces read as neutral far more often than
+# they read as, say, angry, so the model's raw probabilities systematically
+# under-call subtler expressions (sad/angry/fear especially) in favor of
+# neutral. For a live feedback badge (not a scored metric) we want it to
+# actually surface those signals instead of resolving to neutral the moment
+# an expression isn't a big, exaggerated smile — so damp neutral's raw
+# weight and boost the classes it tends to swallow.
+EMOTION_SENSITIVITY_BOOST = {
+    'neutral': 0.55,
+    'happy': 1.0,
+    'surprise': 1.3,
+    'sad': 1.8,
+    'angry': 1.9,
+    'fear': 1.6,
+    'disgust': 1.7,
+}
+
+
+def _apply_sensitivity_boost(emotions: Dict[str, float]) -> Dict[str, float]:
+    """Rebalance raw emotion probabilities toward the under-called classes."""
+    boosted = {k: v * EMOTION_SENSITIVITY_BOOST.get(k, 1.0) for k, v in emotions.items()}
+    total = sum(boosted.values())
+    if total > 0:
+        return {k: v / total for k, v in boosted.items()}
+    return emotions
+
 
 class SentimentAnalyzer:
     """Analyzes sentiment and tone from text"""
@@ -586,7 +613,9 @@ class FacialExpressionAnalyzer:
             detection_method = 'FER+ (ONNX)'
         else:
             emotions = self._analyze_emotion_simple(face_roi)
-        
+
+        emotions = _apply_sensitivity_boost(emotions)
+
         # Find dominant emotion
         dominant_emotion = max(emotions, key=emotions.get)
         max_confidence = emotions[dominant_emotion]
