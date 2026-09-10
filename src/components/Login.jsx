@@ -18,36 +18,98 @@ export default function Login({ onLogin, darkMode = true, theme = {} }) {
 
   const features = [
     {
-      icon: '🎤',
+      icon: 'mic',
       title: 'AI-Powered Interviews',
-      description: 'Practice with our intelligent AI interviewer that adapts to your responses',
-      color: '#B68B49'
+      description: 'Practice with an interviewer that adapts to your responses in real time',
+      color: '#C89A5B'
     },
     {
-      icon: '📊',
+      icon: 'chart',
       title: 'Real-time Feedback',
       description: 'Get instant analysis and scoring on every answer you provide',
-      color: '#906E2F'
+      color: '#D6A548'
     },
     {
-      icon: '📄',
+      icon: 'document',
       title: 'Smart Resume Analysis',
-      description: 'Upload your resume and get personalized questions tailored to your skills',
-      color: '#654622'
+      description: 'Upload your resume and get questions tailored to your skills',
+      color: '#8C8168'
     },
     {
-      icon: '📈',
+      icon: 'trend',
       title: 'Performance Reports',
-      description: 'Track your progress with detailed analytics and improvement suggestions',
-      color: '#4D574E'
+      description: 'Track your progress with detailed analytics and suggestions',
+      color: '#8AAE7C'
     },
     {
-      icon: '🎓',
+      icon: 'cap',
       title: 'Thapar Question Bank',
-      description: 'Sign up with your @thapar.edu email to unlock previous-year company-wise interview questions',
-      color: '#B68B49'
+      description: 'Sign up with a @thapar.edu email to unlock previous-year company interview questions',
+      color: '#C89A5B'
     }
   ]
+
+  // Minimal line-style icons (stroke-based, currentColor) — deliberately
+  // not emoji: they inherit the feature's accent color and stay crisp at
+  // any size instead of rendering as a platform-specific colored glyph.
+  const FeatureIcon = ({ name, size = 40, color = '#C89A5B' }) => {
+    const common = {
+      width: size,
+      height: size,
+      viewBox: '0 0 24 24',
+      fill: 'none',
+      stroke: color,
+      strokeWidth: 1.5,
+      strokeLinecap: 'round',
+      strokeLinejoin: 'round'
+    }
+    switch (name) {
+      case 'mic':
+        return (
+          <svg {...common}>
+            <rect x="9" y="2" width="6" height="12" rx="3" />
+            <path d="M5 10a7 7 0 0 0 14 0" />
+            <line x1="12" y1="19" x2="12" y2="22" />
+            <line x1="8" y1="22" x2="16" y2="22" />
+          </svg>
+        )
+      case 'chart':
+        return (
+          <svg {...common}>
+            <line x1="4" y1="20" x2="20" y2="20" />
+            <rect x="6" y="12" width="3" height="8" />
+            <rect x="11" y="7" width="3" height="13" />
+            <rect x="16" y="3" width="3" height="17" />
+          </svg>
+        )
+      case 'document':
+        return (
+          <svg {...common}>
+            <path d="M7 3h7l5 5v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z" />
+            <path d="M14 3v5h5" />
+            <line x1="9" y1="13" x2="15" y2="13" />
+            <line x1="9" y1="17" x2="15" y2="17" />
+          </svg>
+        )
+      case 'trend':
+        return (
+          <svg {...common}>
+            <polyline points="4 16 10 10 14 14 20 6" />
+            <polyline points="14 6 20 6 20 12" />
+          </svg>
+        )
+      case 'cap':
+        return (
+          <svg {...common}>
+            <path d="M2 9.5 12 5l10 4.5-10 4.5L2 9.5z" />
+            <path d="M6 12v4.5c0 1.1 2.7 2.5 6 2.5s6-1.4 6-2.5V12" />
+            <line x1="21" y1="9.5" x2="21" y2="16" />
+          </svg>
+        )
+      default:
+        return null
+    }
+  }
 
   // Generate particles on mount
   useEffect(() => {
@@ -130,7 +192,7 @@ export default function Login({ onLogin, darkMode = true, theme = {} }) {
       }
 
       if (mode === 'signup' && data.user?.is_thapar) {
-        setInfo('🎓 Thapar email detected — the previous-year company question bank is unlocked on your account!')
+        setInfo('Thapar email detected — the previous-year company question bank is now unlocked on your account.')
       }
 
       onLogin({ demo: false, token: data.token, user: data.user })
@@ -357,11 +419,18 @@ export default function Login({ onLogin, darkMode = true, theme = {} }) {
                   color: '#F5EDE0'
                 }}>
                 <div style={{
-                  fontSize: 72,
-                  marginBottom: 20,
+                  width: 64,
+                  height: 64,
+                  marginBottom: 24,
+                  borderRadius: 16,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  background: `${feature.color}1A`,
+                  border: `1px solid ${feature.color}40`,
                   animation: currentFeature === index ? 'pulse 2s ease-in-out infinite' : 'none'
                 }}>
-                  {feature.icon}
+                  <FeatureIcon name={feature.icon} size={30} color={feature.color} />
                 </div>
                 <h2 style={{
                   fontSize: 32,
@@ -573,9 +642,12 @@ export default function Login({ onLogin, darkMode = true, theme = {} }) {
                     right: 20,
                     top: '50%',
                     transform: 'translateY(-50%)',
-                    fontSize: 20
+                    display: 'flex'
                   }}>
-                    📧
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.4)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="3" y="5" width="18" height="14" rx="2" />
+                      <path d="M3 7l9 6 9-6" />
+                    </svg>
                   </div>
                 </div>
               </div>
@@ -625,9 +697,12 @@ export default function Login({ onLogin, darkMode = true, theme = {} }) {
                     right: 20,
                     top: '50%',
                     transform: 'translateY(-50%)',
-                    fontSize: 20
+                    display: 'flex'
                   }}>
-                    🔒
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.4)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="4" y="10" width="16" height="10" rx="2" />
+                      <path d="M8 10V7a4 4 0 0 1 8 0v3" />
+                    </svg>
                   </div>
                 </div>
               </div>
@@ -770,7 +845,7 @@ export default function Login({ onLogin, darkMode = true, theme = {} }) {
                 border: '1px solid rgba(182, 139, 73, 0.3)'
               }}>
                 <p style={{ margin: '0 0 6px 0', fontSize: 13, fontWeight: 700, color: '#F5EDE0', letterSpacing: '0.5px' }}>
-                  🧪 JUST EXPLORING?
+                  Just exploring?
                 </p>
                 <p style={{ margin: '0 0 12px 0', fontSize: 13, color: 'rgba(245, 237, 224, 0.75)', lineHeight: 1.5 }}>
                   Try the demo account below — no signup needed. Demo mode has <strong>no saved history</strong> and{' '}

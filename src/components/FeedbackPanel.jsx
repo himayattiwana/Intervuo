@@ -45,6 +45,8 @@ export default function FeedbackPanel({
         maxWidth: 800,
         maxHeight: '90vh',
         background: theme.bgCard,
+        backdropFilter: theme.blur,
+        WebkitBackdropFilter: theme.blur,
         borderRadius: 20,
         boxShadow: `0 20px 60px rgba(0, 0, 0, 0.5)`,
         padding: 40,
@@ -76,17 +78,23 @@ export default function FeedbackPanel({
             0%, 100% { opacity: 1; }
             50% { opacity: 0.5; }
           }
+
+          @keyframes spin {
+            to { transform: rotate(360deg); }
+          }
         `}</style>
 
         {loading ? (
           <div style={{ textAlign: 'center', padding: '60px 20px' }}>
             <div style={{
-              fontSize: 64,
-              marginBottom: 20,
-              animation: 'pulse 1.5s ease-in-out infinite'
-            }}>
-              🤖
-            </div>
+              width: 40,
+              height: 40,
+              margin: '0 auto 24px',
+              border: `3px solid ${theme.border}`,
+              borderTopColor: theme.accent,
+              borderRadius: '50%',
+              animation: 'spin 0.8s linear infinite'
+            }} />
             <h3 style={{ 
               margin: '0 0 15px 0', 
               fontSize: 24, 

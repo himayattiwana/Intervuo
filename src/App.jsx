@@ -24,22 +24,26 @@ function App() {
   const [showReport, setShowReport] = useState(false)
   const darkMode = true
 
-  // Theme colors inspired by the new palette
+  // Warm, slightly lighter dark palette. Cards are translucent (rgba) with
+  // a backdrop blur so they read as glass against the page's gradient
+  // background rather than as flat opaque slabs.
   const theme = {
-    bg: '#151412',
-    bgSecondary: '#1F1E1B',
-    bgCard: '#23211D',
-    text: '#F5EDE0',
-    textSecondary: '#D2C3A8',
-    textTertiary: '#A08F75',
-    accent: '#B68B49',
-    border: '#3A3B33',
-    success: '#B68B49',
-    warning: '#906E2F',
-    error: '#654622',
-    purple: '#4D574E',
-    shadow: 'rgba(0,0,0,0.5)',
-    primaryGradient: 'linear-gradient(135deg, #3A2F23 0%, #5A452E 45%, #B68B49 100%)'
+    bg: 'radial-gradient(circle at 15% 0%, #2A2115 0%, #1C1712 45%, #171310 100%)',
+    bgSecondary: 'rgba(255, 246, 230, 0.04)',
+    bgCard: 'rgba(42, 37, 29, 0.6)',
+    text: '#F7EFE2',
+    textSecondary: '#DCCBAC',
+    textTertiary: '#AC9A7C',
+    accent: '#C89A5B',
+    accentSoft: 'rgba(200, 154, 91, 0.14)',
+    border: 'rgba(247, 239, 226, 0.09)',
+    success: '#8AAE7C',
+    warning: '#D6A548',
+    error: '#D97F5E',
+    purple: '#8C8168',
+    shadow: 'rgba(10, 8, 5, 0.35)',
+    blur: 'blur(18px)',
+    primaryGradient: 'linear-gradient(135deg, #4A3A26 0%, #6E5433 45%, #C89A5B 100%)'
   }
 
   useEffect(() => {
@@ -112,7 +116,7 @@ function App() {
       if (data.session_id) {
         setSessionId(data.session_id)
         setSessionInfo(info)
-        console.log('✅ Session created:', data.session_id)
+        console.log('Session created:', data.session_id)
         return data.session_id
       }
     } catch (error) {
@@ -173,7 +177,7 @@ function App() {
       const result = await response.json()
       
       if (result.success) {
-        console.log('✅ Answer saved with feedback:', result)
+        console.log('Answer saved with feedback:', result)
         setAnsweredQuestions(prev => [...prev, currentQuestionIndex])
         return true
       } else {
@@ -251,7 +255,7 @@ function App() {
   }
 
   const handleQuestionsGenerated = async (questions, resumeInfo) => {
-    console.log('🎯 Questions generated, creating session...')
+    console.log('Questions generated, creating session...')
     setGeneratedQuestions(questions)
     setCurrentQuestionIndex(0)
     setAnsweredQuestions([])
@@ -264,7 +268,7 @@ function App() {
     })
     
     if (newSessionId) {
-      console.log('✅ Session ready! User can now start the interview.')
+      console.log('Session ready, user can now start the interview.')
     } else {
       alert('Failed to create session. Please check if Python server is running.')
     }
@@ -342,12 +346,13 @@ function App() {
           {/* Navigation Bar */}
           <nav style={{
             background: theme.bgCard,
+            backdropFilter: theme.blur,
+            WebkitBackdropFilter: theme.blur,
             borderBottom: `1px solid ${theme.border}`,
             padding: '20px 30px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            backdropFilter: 'blur(20px)',
             position: 'sticky',
             top: 0,
             zIndex: 100,
@@ -485,6 +490,8 @@ function App() {
                     maxWidth: 1200,
                     marginBottom: 30,
                     background: theme.bgCard,
+                    backdropFilter: theme.blur,
+                    WebkitBackdropFilter: theme.blur,
                     borderRadius: 16,
                     padding: 24,
                     border: `1px solid ${theme.border}`,
@@ -588,6 +595,8 @@ function App() {
                         borderRadius: 12,
                         border: `1px solid ${theme.border}`,
                         background: theme.bgCard,
+                        backdropFilter: theme.blur,
+                        WebkitBackdropFilter: theme.blur,
                         color: currentQuestionIndex === 0 ? theme.textTertiary : theme.text,
                         fontSize: 14,
                         fontWeight: 600,
@@ -608,6 +617,8 @@ function App() {
                         borderRadius: 12,
                         border: `1px solid ${theme.border}`,
                         background: theme.bgCard,
+                        backdropFilter: theme.blur,
+                        WebkitBackdropFilter: theme.blur,
                         color: currentQuestionIndex === generatedQuestions.length - 1 ? theme.textTertiary : theme.text,
                         fontSize: 14,
                         fontWeight: 600,
@@ -625,6 +636,8 @@ function App() {
                     maxWidth: 800,
                     marginTop: 40,
                     background: theme.bgCard,
+                    backdropFilter: theme.blur,
+                    WebkitBackdropFilter: theme.blur,
                     borderRadius: 16,
                     padding: 24,
                     border: `1px solid ${theme.border}`,
@@ -684,9 +697,23 @@ function App() {
                   maxWidth: 500
                 }}>
                   <div style={{
-                    fontSize: 64,
-                    marginBottom: 20
-                  }}>🎤</div>
+                    width: 72,
+                    height: 72,
+                    margin: '0 auto 24px',
+                    borderRadius: 20,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    background: theme.accentSoft,
+                    border: `1px solid ${theme.border}`
+                  }}>
+                    <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke={theme.accent} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="9" y="2" width="6" height="12" rx="3" />
+                      <path d="M5 10a7 7 0 0 0 14 0" />
+                      <line x1="12" y1="19" x2="12" y2="22" />
+                      <line x1="8" y1="22" x2="16" y2="22" />
+                    </svg>
+                  </div>
                   <h2 style={{
                     fontSize: 24,
                     fontWeight: 700,
@@ -735,6 +762,8 @@ function App() {
                 maxWidth: 900,
                 marginBottom: 30,
                 background: theme.bgCard,
+                backdropFilter: theme.blur,
+                WebkitBackdropFilter: theme.blur,
                 borderRadius: 16,
                 padding: 24,
                 border: `1px solid ${theme.border}`,

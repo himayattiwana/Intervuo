@@ -2,6 +2,14 @@
   command = "npm run build"
   publish = "dist"
 
+# Hosting moved to Vercel (bigger free plan). Forward the old Netlify URL
+# so anyone who has it saved/shared still lands on the live site.
+[[redirects]]
+  from = "/*"
+  to = "https://intervuo1.vercel.app/:splat"
+  status = 301
+  force = true
+
 [[redirects]]
   from = "/*"
   to = "/index.html"

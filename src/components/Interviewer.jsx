@@ -9,12 +9,21 @@ import API from '../config/api'
 // traffic-light color plus a short, encouraging live tip. Kept as real
 // green/amber/red/blue rather than the app's muted theme palette so the
 // signal reads instantly at a glance while the candidate is mid-answer.
+//
+// Keyed on the raw `dominant_emotion` (the classifier's top-scoring label
+// for THIS frame) rather than `interview_state` — that field is a heavily
+// smoothed, conservative aggregate meant for scoring a whole answer at the
+// end (it defaults to "calm" unless emotions cross fairly high thresholds),
+// so it barely ever changes frame to frame. The raw label is what actually
+// moves in response to the candidate's expression.
 const EMOTION_PRESENTATION = {
-  confident: { emoji: '😊', label: 'Confident', color: '#22c55e', tip: "You're doing great — keep it up!" },
-  calm: { emoji: '🙂', label: 'Calm', color: '#eab308', tip: 'Looking composed. A small smile helps too.' },
-  neutral: { emoji: '😐', label: 'Neutral', color: '#eab308', tip: 'Try to show a bit more energy or a smile.' },
-  hesitant: { emoji: '😯', label: 'Hesitant', color: '#3b82f6', tip: 'Take a breath — you can pause before answering.' },
-  nervous: { emoji: '😟', label: 'Nervous', color: '#ef4444', tip: 'Relax your shoulders and smile — you’ve got this.' },
+  happy: { label: 'Happy', color: '#22c55e', tip: 'Great energy — keep it up!' },
+  neutral: { label: 'Neutral', color: '#eab308', tip: 'Try to show a bit more energy or a smile.' },
+  surprise: { label: 'Surprised', color: '#3b82f6', tip: 'Take a breath before you answer.' },
+  sad: { label: 'Sad', color: '#ef4444', tip: 'Relax your shoulders and smile — you’ve got this.' },
+  fear: { label: 'Nervous', color: '#ef4444', tip: 'Relax — take a moment, you can do this.' },
+  angry: { label: 'Tense', color: '#ef4444', tip: 'Try to soften your expression a little.' },
+  disgust: { label: 'Tense', color: '#ef4444', tip: 'Try to soften your expression a little.' },
 }
 
 export default function Interviewer({ 
@@ -69,6 +78,8 @@ export default function Interviewer({
         padding: 20, 
         textAlign: 'center',
         background: theme.bgCard,
+        backdropFilter: theme.blur,
+        WebkitBackdropFilter: theme.blur,
         borderRadius: 16,
         border: `1px solid ${theme.border}`
       }}>
@@ -509,6 +520,8 @@ export default function Interviewer({
         gap: 24,
         width: '100%',
         background: theme.bgCard,
+        backdropFilter: theme.blur,
+        WebkitBackdropFilter: theme.blur,
         borderRadius: 16,
         boxShadow: `0 4px 20px ${theme.shadow}`,
         padding: 20,
@@ -574,7 +587,7 @@ export default function Interviewer({
               </div>
             )}
             {liveEmotion && (() => {
-              const presentation = EMOTION_PRESENTATION[liveEmotion.interview_state] || EMOTION_PRESENTATION.neutral
+              const presentation = EMOTION_PRESENTATION[liveEmotion.dominant_emotion] || EMOTION_PRESENTATION.neutral
               return (
                 <div style={{
                   position: 'absolute',
@@ -590,7 +603,13 @@ export default function Interviewer({
                   transition: 'border-color 0.3s ease, box-shadow 0.3s ease'
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ fontSize: 18 }}>{presentation.emoji}</span>
+                    <span style={{
+                      width: 10,
+                      height: 10,
+                      borderRadius: '50%',
+                      background: presentation.color,
+                      boxShadow: `0 0 8px ${presentation.color}`
+                    }} />
                     <span style={{ fontWeight: 700, fontSize: 14, color: presentation.color }}>
                       {presentation.label}
                     </span>
@@ -791,7 +810,9 @@ export default function Interviewer({
                 padding: '12px 20px', 
                 borderRadius: 12, 
                 border: `1px solid ${theme.border}`, 
-                background: theme.bgCard, 
+                background: theme.bgCard,
+                backdropFilter: theme.blur,
+                WebkitBackdropFilter: theme.blur,
                 color: theme.textSecondary, 
                 fontWeight: 500,
                 fontSize: 14,

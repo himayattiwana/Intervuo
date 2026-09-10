@@ -298,6 +298,8 @@ export default function ResumeUpload({
             {/* Upload Zone */}
             <div style={{
               background: theme.bgCard,
+              backdropFilter: theme.blur,
+              WebkitBackdropFilter: theme.blur,
               borderRadius: 24,
               padding: 50,
               boxShadow: `0 20px 60px ${theme.shadow}`,
@@ -370,13 +372,28 @@ export default function ResumeUpload({
                 />
                 
                 <div style={{
-                  fontSize: 80,
-                  marginBottom: 25,
+                  width: 80,
+                  height: 80,
+                  margin: '0 auto 25px',
+                  borderRadius: 20,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  background: theme.accentSoft,
+                  border: `1px solid ${theme.border}`,
                   animation: fileName ? 'pulse 2s ease-in-out infinite' : 'none',
-                  filter: dragActive ? 'hue-rotate(90deg)' : 'none',
                   transition: 'all 0.3s ease'
                 }}>
-                  {dragActive ? '⚡' : fileName ? '✓' : '📄'}
+                  {fileName ? (
+                    <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke={theme.success} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                  ) : (
+                    <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke={accentColor} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M7 3h7l5 5v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z" />
+                      <path d="M14 3v5h5" />
+                    </svg>
+                  )}
                 </div>
                 
                 {fileName ? (
@@ -409,6 +426,8 @@ export default function ResumeUpload({
                         borderRadius: 12,
                         border: `2px solid ${theme.border}`,
                         background: theme.bgCard,
+                        backdropFilter: theme.blur,
+                        WebkitBackdropFilter: theme.blur,
                         color: theme.textSecondary,
                         cursor: analyzing ? 'not-allowed' : 'pointer',
                         fontSize: 15,
@@ -624,13 +643,27 @@ export default function ResumeUpload({
               animation: 'slideUp 1s ease-out 0.4s both'
             }}>
               {[
-                { icon: '🎯', title: 'Skill Detection', desc: 'AI identifies your key skills' },
-                { icon: '📊', title: 'Smart Analysis', desc: 'Deep resume evaluation' },
-                { icon: '💡', title: 'Recommendations', desc: 'Get improvement tips' },
-                { icon: '🎤', title: 'Interview Prep', desc: 'Generate custom questions' }
+                {
+                  title: 'Skill Detection', desc: 'Identifies your key skills',
+                  icon: <><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="5" /><circle cx="12" cy="12" r="1" /></>
+                },
+                {
+                  title: 'Smart Analysis', desc: 'Deep resume evaluation',
+                  icon: <><line x1="4" y1="20" x2="20" y2="20" /><rect x="6" y="12" width="3" height="8" /><rect x="11" y="7" width="3" height="13" /><rect x="16" y="3" width="3" height="17" /></>
+                },
+                {
+                  title: 'Recommendations', desc: 'Get improvement tips',
+                  icon: <><path d="M9 18h6" /><path d="M10 22h4" /><path d="M12 2a6 6 0 0 0-3.5 10.9c.5.4.9 1.2.9 2.1h5.2c0-.9.4-1.7.9-2.1A6 6 0 0 0 12 2z" /></>
+                },
+                {
+                  title: 'Interview Prep', desc: 'Generate custom questions',
+                  icon: <><rect x="9" y="2" width="6" height="12" rx="3" /><path d="M5 10a7 7 0 0 0 14 0" /><line x1="12" y1="19" x2="12" y2="22" /></>
+                }
               ].map((item, i) => (
                 <div key={i} style={{
                   background: theme.bgCard,
+                  backdropFilter: theme.blur,
+                  WebkitBackdropFilter: theme.blur,
                   border: `1px solid ${theme.border}`,
                   borderRadius: 16,
                   padding: 25,
@@ -651,11 +684,18 @@ export default function ResumeUpload({
                   e.currentTarget.style.borderColor = theme.border
                 }}>
                   <div style={{
-                    fontSize: 48,
-                    marginBottom: 15,
-                    filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.2))'
+                    width: 44,
+                    height: 44,
+                    margin: '0 auto 16px',
+                    borderRadius: 12,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    background: theme.accentSoft
                   }}>
-                    {item.icon}
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={accentColor} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                      {item.icon}
+                    </svg>
                   </div>
                   <h3 style={{
                     fontSize: 18,
@@ -823,6 +863,8 @@ export default function ResumeUpload({
             {isThapar && (
               <div style={{
                 background: theme.bgCard,
+                backdropFilter: theme.blur,
+                WebkitBackdropFilter: theme.blur,
                 borderRadius: 24,
                 padding: 40,
                 marginBottom: 30,
@@ -830,7 +872,7 @@ export default function ResumeUpload({
                 boxShadow: `0 20px 60px ${theme.shadow}`
               }}>
                 <h2 style={{ margin: '0 0 10px 0', fontSize: 24, color: theme.text }}>
-                  🎓 Practice with Real Interview Questions
+                  Practice with real interview questions
                 </h2>
                 <p style={{ margin: '0 0 20px 0', color: theme.textSecondary, lineHeight: 1.6 }}>
                   You have access to Thapar's previous-year placement question bank. We can match questions
@@ -873,6 +915,8 @@ export default function ResumeUpload({
                           padding: 14,
                           borderRadius: 10,
                           background: theme.bgCard,
+                          backdropFilter: theme.blur,
+                          WebkitBackdropFilter: theme.blur,
                           border: `1px solid ${theme.border}`
                         }}>
                           <span style={{
@@ -934,6 +978,8 @@ export default function ResumeUpload({
             {/* Skills Analysis */}
             <div style={{
               background: theme.bgCard,
+              backdropFilter: theme.blur,
+              WebkitBackdropFilter: theme.blur,
               borderRadius: 24,
               padding: 40,
               boxShadow: `0 20px 60px ${theme.shadow}`,
@@ -1049,6 +1095,8 @@ export default function ResumeUpload({
             {/* Tips */}
             <div style={{
               background: theme.bgCard,
+              backdropFilter: theme.blur,
+              WebkitBackdropFilter: theme.blur,
               borderRadius: 24,
               padding: 40,
               boxShadow: `0 20px 60px ${theme.shadow}`,
@@ -1097,6 +1145,8 @@ export default function ResumeUpload({
             {/* Courses */}
             <div style={{
               background: theme.bgCard,
+              backdropFilter: theme.blur,
+              WebkitBackdropFilter: theme.blur,
               borderRadius: 24,
               padding: 40,
               boxShadow: `0 20px 60px ${theme.shadow}`,

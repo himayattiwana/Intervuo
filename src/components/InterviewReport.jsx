@@ -49,22 +49,25 @@ export default function InterviewReport({ sessionId, onClose, darkMode = true, t
         transition: 'all 0.3s ease'
       }}>
         <div style={{ textAlign: 'center' }}>
-          <div style={{ 
-            fontSize: 48, 
-            marginBottom: 20,
-            animation: 'pulse 1.5s ease-in-out infinite'
-          }}>📊</div>
-          <h2 style={{ 
+          <div style={{
+            width: 40,
+            height: 40,
+            margin: '0 auto 24px',
+            border: `3px solid ${theme.border}`,
+            borderTopColor: theme.accent,
+            borderRadius: '50%',
+            animation: 'spin 0.8s linear infinite'
+          }} />
+          <h2 style={{
             color: theme.text,
             fontSize: 24,
             fontWeight: 600
           }}>
-            Generating Your Report...
+            Generating your report…
           </h2>
           <style>{`
-            @keyframes pulse {
-              0%, 100% { opacity: 1; transform: scale(1); }
-              50% { opacity: 0.7; transform: scale(1.1); }
+            @keyframes spin {
+              to { transform: rotate(360deg); }
             }
           `}</style>
         </div>
@@ -84,7 +87,13 @@ export default function InterviewReport({ sessionId, onClose, darkMode = true, t
         justifyContent: 'center'
       }}>
         <div style={{ maxWidth: 500, textAlign: 'center' }}>
-          <div style={{ fontSize: 48, marginBottom: 20 }}>⚠️</div>
+          <div style={{ width: 48, height: 48, margin: '0 auto 20px' }}>
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke={theme.error} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+              <line x1="12" y1="9" x2="12" y2="13" />
+              <line x1="12" y1="17" x2="12.01" y2="17" />
+            </svg>
+          </div>
           <h2 style={{ marginBottom: 10 }}>Unable to load report</h2>
           <p style={{ color: theme.textSecondary, marginBottom: 30 }}>{error}</p>
           <button
@@ -119,7 +128,13 @@ export default function InterviewReport({ sessionId, onClose, darkMode = true, t
         justifyContent: 'center'
       }}>
         <div>
-          <div style={{ fontSize: 48, marginBottom: 20 }}>⚠️</div>
+          <div style={{ width: 48, height: 48, margin: '0 auto 20px' }}>
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke={theme.error} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+              <line x1="12" y1="9" x2="12" y2="13" />
+              <line x1="12" y1="17" x2="12.01" y2="17" />
+            </svg>
+          </div>
           <h2>Error loading report</h2>
         </div>
       </div>
@@ -166,10 +181,10 @@ export default function InterviewReport({ sessionId, onClose, darkMode = true, t
 
   const getPerformanceLevel = (avg) => {
     const safeAvg = parseScore(avg)
-    if (safeAvg >= 8) return { text: 'Excellent', color: theme.success, emoji: '🌟' }
-    if (safeAvg >= 6) return { text: 'Good', color: darkMode ? '#8BC34A' : '#7CB342', emoji: '👍' }
-    if (safeAvg >= 4) return { text: 'Fair', color: theme.warning, emoji: '📈' }
-    return { text: 'Needs Improvement', color: theme.error, emoji: '💪' }
+    if (safeAvg >= 8) return { text: 'Excellent', color: theme.success }
+    if (safeAvg >= 6) return { text: 'Good', color: darkMode ? '#8BC34A' : '#7CB342' }
+    if (safeAvg >= 4) return { text: 'Fair', color: theme.warning }
+    return { text: 'Needs Improvement', color: theme.error }
   }
 
   const performance = getPerformanceLevel(averageScore)
@@ -251,6 +266,8 @@ export default function InterviewReport({ sessionId, onClose, darkMode = true, t
         {/* Score Legend */}
         <div style={{
           background: theme.bgCard,
+          backdropFilter: theme.blur,
+          WebkitBackdropFilter: theme.blur,
           borderRadius: 16,
           padding: 25,
           marginBottom: 20,
@@ -412,6 +429,8 @@ export default function InterviewReport({ sessionId, onClose, darkMode = true, t
         {/* Overall Performance */}
         <div style={{
           background: theme.bgCard,
+          backdropFilter: theme.blur,
+          WebkitBackdropFilter: theme.blur,
           borderRadius: 16,
           padding: 40,
           marginBottom: 20,
@@ -436,7 +455,6 @@ export default function InterviewReport({ sessionId, onClose, darkMode = true, t
             border: `2px solid ${performance.color}`,
             marginBottom: 25
           }}>
-            <div style={{ fontSize: 60, marginBottom: 15 }}>{performance.emoji}</div>
             <div style={{
               fontSize: 72,
               fontWeight: 'bold',
@@ -476,6 +494,8 @@ export default function InterviewReport({ sessionId, onClose, darkMode = true, t
         {/* Detailed Answers */}
         <div style={{
           background: theme.bgCard,
+          backdropFilter: theme.blur,
+          WebkitBackdropFilter: theme.blur,
           borderRadius: 16,
           padding: 40,
           marginBottom: 20,
